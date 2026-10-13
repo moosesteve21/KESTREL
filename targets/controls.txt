@@ -1,0 +1,11 @@
+# One target per line: a star name or "TIC <number>". Lines starting with # are ignored.
+#
+# Positive controls: stars with known transiting planets seen by TESS.
+# If the pipeline doesn't recover these, don't trust its results for the others.
+pi Men
+LHS 3844
+TOI-700
+TOI-270
+WASP-18
+
+# Add your own targets below.

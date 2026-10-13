@@ -1,0 +1,26 @@
+# Regression set: run after any major change to the search or vetting, then
+#     ./run_parallel.sh targets/regression.txt scratch/regression 8
+#     .venv/bin/python tests/check_regression.py scratch/regression
+# Expected outcomes are in tests/regression_expect.csv. About 20 minutes (TOI-700
+# is the slowest). Kept separate from targets/controls.txt, which lists only
+# confirmed planets.
+
+# Known planets (the controls): all 10 must be found clean
+pi Men
+LHS 3844
+TOI-700
+TOI-270
+WASP-18
+
+# Benchmark: a clean 3.18 d signal plus a second at 11.13 d (each the other's
+# periodogram rival: tests that ambiguous_period isn't raised by a second planet)
+TIC 4206066
+
+# Unconfirmed candidate, the kind of signal the pipeline is for: weak (~440 ppm,
+# SNR ~10), 29 transits on an M dwarf. Must stay found and clean.
+TIC 302453503
+
+# Reviewed false or doubtful signals: must not come out clean
+TIC 111784356
+TIC 298514156
+TIC 14566446

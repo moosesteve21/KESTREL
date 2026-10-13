@@ -1,0 +1,58 @@
+PlanetFinder: an example run of the full pipeline, batch b0xx
+Run from ~/TESS, in the tmux session "tess".
+
+# 1. Select the next 200 unsearched stars from the whole-sky catalogue
+.venv/bin/python tess_target_finder.py --batch 200 --name b0xx
+
+# 2. Record the target list in git
+git add targets/b0xx.txt targets/b0xx.csv
+git commit -m "Target batch b0xx"
+
+# 3. Prefetch the light curves and stellar parameters from MAST
+.venv/bin/python prefetch.py targets/b0xx.txt results/b0xx
+
+# 4. Search, check, fit and load into the database (all steps, unattended)
+./pipeline.sh targets/b0xx.txt results/b0xx 8 "batch b0xx"
+
+# 5. Check that the run finished
+server/batch_status.sh
+
+# 6. Review the signals and the VSX shortlist in Datasette
+http://127.0.0.1:8001/tess/candidates_view
+
+# 7. Take a closer look at a clean candidate (here TIC 123456789, candidate 1)
+.venv/bin/python investigations/candidate_review.py "TIC 123456789" 7.1171 1331.7064 2.3 investigations/tic123456789
+.venv/bin/python investigations/other_pipelines.py 123456789 7.1171 1331.7064 2.3 investigations/tic123456789
+
+# 8. Record the verdict against the star
+.venv/bin/python tessdb.py note "TIC 123456789" "Doubtful: missing in two sectors"
+
+# 9. Watch a candidate worth re-testing as new sectors arrive
+.venv/bin/python watchlist.py add "TIC 123456789" --run b0xx --candidate 1
+
+# 10. Commit the database records and push
+git add records investigations
+git commit -m "Batch b0xx: records and investigations"
+git push
+
+
+Notes
+-----
+Step 1   --batch and --name are required. The command prints the prefetch command to
+         use next. To undo an unused batch: tess_target_finder.py --release b0xx.
+Step 3   Optional, but it lets the search run without MAST. Rerun it to retry any
+         stars that failed; it fetches only what is missing.
+Step 4   "8" is the number of workers and "batch b0xx" the note in the database.
+         The steps it runs: search, catalogue checks, pixel check, reduction check,
+         VSX shortlist, transit fit, FPP check, database load, backup (which also
+         writes records/*.csv). The database is updated every 100 stars during the
+         search. To pause: touch results/b0xx/STOP. To resume: the same command again.
+Step 5   Lists any batch that didn't finish, with the command that resumes it.
+Step 6   A browser address, not a command (Datasette runs in the tmux session "db").
+         The VSX shortlist is vsx_shortlist_view; plots open from the plot_url column.
+Step 7   The numbers are the period (d), mid-transit time (BTJD) and duration (hours),
+         taken from the candidate's row. other_pipelines.py takes the bare TIC number.
+Step 8   Optional flags: --tag (e.g. candidate-review, vsx-candidate), --run, --candidate.
+Step 9   Run "watchlist.py check" after new sectors are released, roughly monthly.
+Step 10  The push needs your GitHub credentials. VSX submissions and Talk posts go to
+         ~/candidates instead, committed before they are submitted.

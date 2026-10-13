@@ -1,0 +1,17 @@
+star,period_d,expect,flag,note
+pi Men,6.26786,clean,,pi Men c
+LHS 3844,0.462927,clean,,LHS 3844 b
+TOI-700,16.05119,clean,,TOI-700 b
+TOI-700,9.977187,clean,,TOI-700 c
+TOI-700,37.42367,clean,,TOI-700 d
+TOI-700,27.81001,clean,,TOI-700 e
+TOI-270,5.660496,clean,,TOI-270 c
+TOI-270,11.37973,clean,,TOI-270 d
+TOI-270,3.36015,clean,,TOI-270 b
+WASP-18,0.941456,clean,,WASP-18 b
+TIC 4206066,3.182783,clean,,benchmark; its rival is the 11.13 d signal
+TIC 4206066,11.13269,found,,benchmark second signal (few transits)
+TIC 302453503,3.629181,clean,,"L 642-3 candidate, b007; posted to Planet Hunters TESS"
+TIC 111784356,15.77763,not_clean,duration_too_long_for_star,dip too long for the star (rejected)
+TIC 298514156,26.69375,not_clean,ambiguous_period,HD 229793 (doubtful)
+TIC 14566446,16.65687,not_clean,ambiguous_period,period not unique (doubtful)

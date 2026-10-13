@@ -1,0 +1,17 @@
+# ~/.config/systemd/user/tess-sessions.service (installed from ~/TESS/server/)
+# Recreates the PlanetFinder tmux sessions at boot. Needs lingering enabled once:
+#     sudo loginctl enable-linger sprice
+[Unit]
+Description=PlanetFinder tmux sessions (claude, db, jupyter, tess)
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=%h/TESS/server/start_sessions.sh
+# The tmux server and everything in it (including a running batch) live in this
+# service, so DON'T stop or restart it while working: that would close every session.
+# At shutdown systemd stops it anyway, which is what a power cut does too.
+KillMode=control-group
+
+[Install]
+WantedBy=default.target

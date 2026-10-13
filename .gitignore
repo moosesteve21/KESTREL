@@ -1,0 +1,16 @@
+.venv/
+.venv-vet/
+venv/
+__pycache__/
+.ipynb_checkpoints/
+*.code-workspace
+results/
+results_*/
+scratch/
+db/
+tess.db
+tess.db-*
+# regenerable data from investigation scripts
+investigations/**/*.npz
+investigations/**/*_chain.npy
+investigations/**/*_gaia_background.csv
