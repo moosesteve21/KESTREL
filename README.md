@@ -60,7 +60,8 @@ posting the outcome to Discord. Then the owner and assistant:
 **Submitting.** A Talk post or a VSX submission is prepared in full (README, plots,
 post or form data, report) in the PlanetCandidates repo. That folder is committed as
 the last step before the owner posts or submits, so the repo records exactly what went
-out.
+out. Every public submission (Talk post, VSX report, email) links both the candidate's
+PlanetCandidates folder and the public code repo, https://github.com/moosesteve21/PlanetFinder.
 
 **What makes a candidate worth posting.** Surviving the automatic checks ("clean") is
 only the start. Before posting, a candidate should also have:
@@ -812,6 +813,7 @@ behind them are in the `gaia_ruwe`, `gaia_rv_chisq_pvalue` and `gaia_c_star_sigm
 | `targets/` | Target lists (`.txt`, read by the search) and the finder's ranked CSVs: `controls.txt` (known-planet control stars), `ffi.txt` (first field), `aries.txt`, `b001.txt`, ... |
 | `records/` | CSV copies of the tables only the database holds (notes, watchlist, batches), written by `tessdb.py backup`; commit them after each batch |
 | `server/` | Boot-time setup: the tmux sessions (claude, db, jupyter, tess) recreated by a systemd user service, and `batch_status.sh` for batches a reboot interrupted |
+| `publish/` | Private-only: `sync_public.py` copies the allowlisted code (`allowlist.txt`) into the public PlanetFinder repo, refusing if a file names an unpublished star |
 | `STATUS.md` | Current state: progress, candidates, VSX queue, open items. Updated after each batch review |
 
 Not in git (made by running the pipeline):
