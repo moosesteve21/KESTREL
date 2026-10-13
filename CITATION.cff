@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use PlanetFinder or its results, please cite it as below."
+title: "PlanetFinder: an independent search of TESS light curves for transiting planets around bright K and M dwarfs"
+authors:
+  - family-names: Price
+    given-names: Steve
+    orcid: "https://orcid.org/0009-0004-6010-3869"
+abstract: >-
+  An unattended pipeline that searches TESS light curves (SPOC, TESS-SPOC and QLP)
+  for transiting planets around bright, lightly observed K and M dwarfs, with automated
+  vetting: odd/even, secondary-eclipse, uniqueness and duration tests, pixel-level
+  position checks, independent-reduction checks, a physical transit fit with a
+  stellar-density test, and TRICERATOPS false-positive probabilities. Candidates are
+  published with their evidence at https://github.com/moosesteve21/PlanetCandidates.
+keywords:
+  - exoplanets
+  - transit search
+  - TESS
+  - M dwarfs
+  - K dwarfs
+  - vetting
+license: MIT
+repository-code: "https://github.com/moosesteve21/PlanetFinder"
+type: software

@@ -814,6 +814,7 @@ behind them are in the `gaia_ruwe`, `gaia_rv_chisq_pvalue` and `gaia_c_star_sigm
 | `records/` | CSV copies of the tables only the database holds (notes, watchlist, batches), written by `tessdb.py backup`; commit them after each batch |
 | `server/` | Boot-time setup: the tmux sessions (claude, db, jupyter, tess) recreated by a systemd user service, and `batch_status.sh` for batches a reboot interrupted |
 | `publish/` | Private-only: `sync_public.py` copies the allowlisted code (`allowlist.txt`) into the public PlanetFinder repo, refusing if a file names an unpublished star |
+| `docs/` | `literature_review.md` (how comparable pipelines vet; improvements to make) and `references.bib` (citations for a write-up) |
 | `STATUS.md` | Current state: progress, candidates, VSX queue, open items. Updated after each batch review |
 
 Not in git (made by running the pipeline):

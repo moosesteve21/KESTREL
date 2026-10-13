@@ -35,7 +35,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 DB = Path(os.environ.get("TESSDB", HERE / "db" / "tess.db"))
-BACKUPS = HERE / "db" / "backups"
+BACKUPS = HERE / "db" / "backups" if "TESSDB" not in os.environ else DB.parent / "backups"   # scratch DBs back up beside themselves
 DATASETTE = HERE / "db" / "datasette"
 # records/: the tables nothing else can recreate, as CSV in git (written by `backup`).
 # A scratch database (TESSDB set) keeps its records beside it, out of the repo.

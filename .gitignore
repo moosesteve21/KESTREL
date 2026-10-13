@@ -14,3 +14,5 @@ tess.db-*
 investigations/**/*.npz
 investigations/**/*_chain.npy
 investigations/**/*_gaia_background.csv
+# downloaded reference papers (not ours to redistribute)
+papers/
