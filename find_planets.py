@@ -1470,9 +1470,11 @@ def process_target(name, outdir, writer, fh):
         if not rows:
             return "no_usable_data"
         logging.info(f"  {len(rows)} sector(s) chosen ({sources}); downloading")
+        t_dl = time.time()
         lcc = download(sr[rows])
         if lcc is None or len(lcc) == 0:
             return "error: download_failed"              # usually transient: retried
+        logging.info(f"  downloaded in {time.time() - t_dl:.1f} s")   # MAST speed, by time of day
     lcs = [c for c in (clean(lc) for lc in lcc) if c is not None]
     if not lcs:
         if not KEEP_LIGHTCURVES:

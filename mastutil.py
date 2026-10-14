@@ -67,8 +67,12 @@ def retry(func, what="MAST query", tries=3, wait=60):
         try:
             return func()
         except Exception as e:
+            retry.failures += 1                  # for timing records (prefetch.jsonl)
             if attempt == tries:
                 raise
             logging.warning(f"  {what} failed ({type(e).__name__}); retrying in {wait} s")
             time.sleep(wait)
+
+
+retry.failures = 0                               # failed attempts in this process so far
 

@@ -62,23 +62,31 @@ def fetch_one(name):
     from mastutil import retry
     logging.disable(logging.WARNING)
     t0 = time.time()
+    fails0 = retry.failures
     rec = dict(star=name, fetched=datetime.now(timezone.utc).isoformat(timespec="seconds"))
+
+    def timing(**kw):          # how MAST behaved, for spotting slow hours (see README)
+        return dict(kw, seconds=round(time.time() - t0), retries=retry.failures - fails0)
     try:
         sr = retry(lambda: lk.search_lightcurve(name, author=fp.AUTHORS), f"{name}: MAST search")
+        t_search = round(time.time() - t0, 1)
         if len(sr) == 0:
-            return dict(rec, status="no_data", files=[], seconds=round(time.time() - t0))
+            return dict(rec, status="no_data", files=[], **timing(search_s=t_search))
         rows, sources = fp.choose_products(sr)
         if not rows:
-            return dict(rec, status="no_usable_data", files=[], seconds=round(time.time() - t0))
+            return dict(rec, status="no_usable_data", files=[], **timing(search_s=t_search))
+        t1 = time.time()
         lcc = fp.download(sr[rows])
+        t_dl = round(time.time() - t1, 1)
         if lcc is None or len(lcc) == 0:
-            return dict(rec, status="error: download_failed", seconds=round(time.time() - t0))
+            return dict(rec, status="error: download_failed", **timing(search_s=t_search, download_s=t_dl))
         files = [str(Path(lc.meta["FILENAME"]).resolve()) for lc in lcc]
+        size = sum(Path(f).stat().st_size for f in files if Path(f).exists())
         star = retry(lambda: fp.star_params(name, raise_errors=True), f"{name}: TIC lookup")
         return dict(rec, status="ok", files=files, sources=sources, star_params=star,
-                    seconds=round(time.time() - t0))
+                    **timing(search_s=t_search, download_s=t_dl, bytes=size))
     except Exception as e:
-        return dict(rec, status=f"error: {type(e).__name__}: {e}"[:200], seconds=round(time.time() - t0))
+        return dict(rec, status=f"error: {type(e).__name__}: {e}"[:200], **timing())
 
 
 def main():
