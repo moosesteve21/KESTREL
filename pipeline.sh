@@ -11,7 +11,9 @@
 #   4. reduction_check.py    independent-reduction check}
 #   4a. vsx_shortlist.py     variable stars for VSX (uses the pixel and reduction verdicts)
 #   4b. transit_fit.py       physical fit, density check } clean candidates; need the
-#   4c. fpp_check.py         TRICERATOPS FPP             } vetting env (.venv-vet)
+#   4c. depth_map_check.py   per-source pixel depth map  } vetting env (.venv-vet);
+#   4d. fpp_check.py         TRICERATOPS FPP             } the depth map uses the fit's
+#                            ephemeris, and the FPP skips dips it puts off target
 #   5. tessdb.py ingest      load the run into db/tess.db (also every 100 stars
 #                            during the search: rolling updates, ROLLING_INGEST)
 #   6. tessdb.py backup      dated copy in db/backups/, and records/*.csv (notes,
@@ -107,9 +109,10 @@ if (( signals > 0 )); then
     step vsx_shortlist "$py" vsx_shortlist.py --no-db "$root"
     if [[ -x "$here/.venv-vet/bin/python" ]]; then
         step transit_fit "$py" transit_fit.py "$root/enriched.csv"
+        step depth_map "$py" depth_map_check.py "$root/enriched.csv"
         step fpp_check "$py" fpp_check.py "$root/enriched.csv"
     else
-        log "   no vetting environment (.venv-vet): transit fit and FPP check skipped"
+        log "   no vetting environment (.venv-vet): transit fit, depth map and FPP check skipped"
     fi
 else
     log "   no signals logged: catalogue, pixel and reduction checks skipped"

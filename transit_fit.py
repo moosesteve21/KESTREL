@@ -24,6 +24,12 @@ come from the star's Teff (approximate TESS-band values).
 Verdict, from log10 density (fit posterior combined with the TIC uncertainty):
   consistent        the TIC density is within DENSITY_SIGMA
   density_mismatch  it is further off (flag: density_mismatch)
+  duration_too_long the fitted T14 is over DUR_MARGIN x the longest transit the TIC star
+                    allows (central, circular, with the fitted Rp/R*). Takes precedence:
+                    such a fit can still pass the density test through wide errors (a
+                    b023 blend: 7.7 h vs 4.4 h; a b017 fit that wandered to 9.9 h).
+                    Real candidates so far reach 1.16x
+Only consistent fits go on to fpp_check.py.
   no_stellar_params the TIC has no mass or radius
   fit_failed
 Writes <out>/transit_fit.csv; the events are kept in <out>/ for fpp_check.py.
@@ -51,6 +57,7 @@ DENSITY_SIGMA = 3.0         # density_mismatch beyond this many sigma (log10 den
 TTV_P = 0.001               # note a density_mismatch whose sector timing scatters this significantly
 TRIES = 3                   # MAST queries: attempts, 60 s apart
 RHO_SUN = 1.41              # g/cm3
+DUR_MARGIN = 1.3            # duration_too_long above this multiple of the star's longest transit
 
 
 def retry(func, what):
@@ -222,10 +229,15 @@ def fit_one(r, outdir, steps):
         note = (f"sector timing scatters (offsets up to {ttv['ttv_max_min']:.0f} min, p = {ttv['ttv_p']:.0e}): "
                 "if real, timing variations smear the dip and lower the fitted density; for weak "
                 "signals the offsets may be noise")
+    max_t14 = fp.max_duration(f["period"][0], star, f["rp_rs"][0]) * 24
+    if f["t14_h"][0] > DUR_MARGIN * max_t14:
+        note = "; ".join(x for x in (f"fitted T14 {f['t14_h'][0]:.1f} h vs at most {max_t14:.1f} h for the star "
+                                     f"(density {verdict.replace('_', ' ')}, {z:+.1f} sigma)", note) if x)
+        verdict = "duration_too_long"
     out = dict(base, verdict=verdict, density_z=round(float(z), 2), rho_tic=round(rho_tic, 3),
                n_events=len(ev), steps=f["steps"], autocorr_steps=round(f["autocorr_steps"], 0),
                sources=sources, events_file=npz.name, ttv_p=ttv.get("ttv_p"),
-               ttv_max_min=ttv.get("ttv_max_min"), detail=note)
+               ttv_max_min=ttv.get("ttv_max_min"), max_t14_h=round(max_t14, 2), detail=note)
     for key in ("period", "t0", "rp_rs", "b", "rho", "a_rs", "t14_h", "depth_ppm"):
         mid, lo, hi = f[key]
         out[key], out[f"{key}_lo"], out[f"{key}_hi"] = mid, lo, hi
@@ -264,6 +276,8 @@ def main():
         df = df[df.status == "clean"]
     logging.info(f"{len(df)} candidate(s) to fit")
     if df.empty:
+        if not args.target:
+            (outdir / "transit_fit.csv").unlink(missing_ok=True)   # don't leave an earlier run's results
         return 0
 
     def safe_fit(r):

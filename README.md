@@ -97,8 +97,10 @@ full batch, step by step), `investigations/README.md` (every close look at a sta
    reductions of the same data.
    - **VSX shortlist:** `vsx_shortlist.py` lists the variable-star signals for VSX.
 6. **Transit fit:** `transit_fit.py` (batman + emcee) checks clean candidates' implied
-   stellar density.
-7. **False-positive probability:** `fpp_check.py` runs TRICERATOPS on consistent fits.
+   stellar density and duration.
+   - **Depth map:** `depth_map_check.py` finds which star the dip comes from, star by star.
+7. **False-positive probability:** `fpp_check.py` runs TRICERATOPS on consistent fits
+   that the depth map doesn't put on another star.
 
 `tessdb.py` keeps every run in one SQLite database, browsable with Datasette. After
 choosing (and ideally prefetching) a batch, one command runs steps 2–7 (with the VSX shortlist), loads the
@@ -546,8 +548,12 @@ For each clean candidate, `transit_fit.py`:
 
 It compares the fitted and catalogued densities in log10, with both uncertainties:
 within 3σ is `consistent`; beyond is `density_mismatch` (also added to the
-candidate's flags). Results go to `transit_fit/transit_fit.csv`: Rp, b, a/R*, T14,
-ρ* and z.
+candidate's flags). A fitted T14 over 1.3× the longest transit the star allows
+(central, circular, `max_t14_h`) is `duration_too_long` instead, whatever the density
+(flag `fit_duration_too_long`): such fits can pass the density test through wide
+errors (a b023 blend: 7.7 h against 4.4 h, density 1.9σ; a b017 fit that wandered to
+9.9 h). Real candidates so far reach 1.16×. Only `consistent` fits go on to the FPP.
+Results go to `transit_fit/transit_fit.csv`: Rp, b, a/R*, T14, ρ* and z.
 
 - **Timing variations:** planets with transit-timing variations (e.g. near a
   resonance) smear the stacked dip, which the fit reads as a grazing transit of a
@@ -562,6 +568,33 @@ candidate's flags). Results go to `transit_fit/transit_fit.csv`: Rp, b, a/R*, T1
   111784356, whose dip lasts longer than its star allows, is `density_mismatch`
   (3.1σ). The reviewed candidates TIC 302453503, 14566446 and HD 229793 are
   `consistent`.
+
+### 6b. Per-source depth map (clean candidates)
+
+```bash
+.venv/bin/python depth_map_check.py results/<name>/enriched.csv
+```
+
+`depth_map_check.py` (method in `depth_map.py`) measures the in-transit flux deficit in
+every pixel of TESScut cutouts, then asks which star's image explains that map best:
+the target, or any neighbour within 2.5′ up to 5.5 mag fainter. The chi-square of each
+source is summed over sectors. It uses the transit fit's ephemeris when the fit is
+consistent (over a long baseline the search's period can drift by tens of minutes).
+
+- **Verdicts** (`depth_map/depth_map.csv`): `on_target` (the target within Δχ² 9 of the
+  best; others that fit as well are listed), `off_target` (another star better by over
+  25 and best in at least half the sectors; flag `depth_map_off_target`, and the FPP
+  isn't run), `inconclusive`, `not_detected` (no source beats "no dip" by Δχ² 16: too
+  shallow to locate, not evidence against the target).
+- **Leave one sector out:** if dropping any single sector flips the verdict between on
+  and off target, it's `inconclusive` and the detail names the sector (one sector of
+  scattered light can dominate the sum; leave it out by hand with `DEPTHMAP_SKIP`).
+- **Why:** `pixel_check.py`'s centroid is pulled about in crowded fields. In b023 it
+  called a blend "consistent" (centre 28″ off), and TRICERATOPS gave it NFPP 0; the
+  depth map put the dip on a brighter star 82″ away (Δχ² 1,260, best in 4 of 5 sectors).
+- **By hand:** `investigations/depth_map.py TIC P T0 T14_HOURS OUTDIR` runs the same
+  map with any ephemeris (`DEPTHMAP_SKIP=63` leaves a sector out).
+- About 1–3 minutes per candidate (cutouts are cached).
 
 ### 7. False-positive probability (consistent fits)
 
@@ -743,6 +776,7 @@ Each detected signal gets one of three statuses:
 | `asymmetric_dip` | The two sides of the dip (just outside, or the two halves inside) differ by more than 3σ and 25% of the depth (`asym_sigma`) |
 | `ambiguous_period` | The periodogram's best peak at an unrelated period (not a ratio m/n of the candidate's, m, n ≤ 5, nor of another signal found in the star) is within 1.0 SDE (`sde_margin` = margin@rival period). Noise dips can be strung together at several periods almost equally well (TIC 14566446: 10.79 vs 10.51 at 19.10 d). Calibrated on 65 recovered injections (1–3 R⊕; smallest margin 1.06) and the known planets: none flagged |
 | `not_unique` | Model-shift test, after Kepler's Robovetter: folded at the period, another dip (or a brightening) is about as significant as the candidate, allowing for the number of independent phases (`model_shift` = ms2;ms3, flagged when either is below 0). Calibrated on 11 known planets and 50 recovered injections: none flagged |
+| `fit_duration_too_long` | Added by `transit_fit.py` (step 6): the fitted T14 is over 1.3× the longest transit the TIC star allows. Such a fit can pass the density test through wide errors (a b017 fit wandered to 9.9 h; a b023 blend fitted 7.7 h against 4.4 h). Real candidates so far reach 1.16× |
 | `density_mismatch` | Added by `transit_fit.py` (step 6): the transit's stellar density differs from the TIC star's by more than 3σ. A blend or eclipsing binary, or (with the timing note) timing variations smearing the fit |
 | `odd_even_timing` | Odd and even transits are centred at different times: more than 3σ and 15% of the duration (`oe_dt_min`) |
 | `v_shaped` | **Informational: doesn't stop `clean`.** The trapezoid fit's ingress takes more than 40% of the half-duration (`ingress_frac`; 1 is a pure V), and a flatter-bottomed fit is worse by Δχ² > 9 (scaled by the fit's reduced χ²). Grazing: an eclipsing binary, or a planet at high impact parameter (TOI-7689.01 is one) |
@@ -812,6 +846,8 @@ behind them are in the `gaia_ruwe`, `gaia_rv_chisq_pvalue` and `gaia_c_star_sigm
 | `mastutil.py` | Shorter MAST timeouts (90 s per request) for the per-star scripts |
 | `prefetch.py` | Fetches a batch's MAST data ahead of its search (`prefetch.jsonl`), so the search runs without MAST |
 | `transit_fit.py` | Step 6: physical transit fit and density check (runs `vetting/transit_mcmc.py` in `.venv-vet`) |
+| `depth_map.py` | Per-source pixel depth map from TESScut cutouts (used by the two below) |
+| `depth_map_check.py` | Step 6b: depth map verdict for clean candidates |
 | `fpp_check.py` | Step 7: TRICERATOPS false-positive probability (runs `vetting/fpp_triceratops.py` in `.venv-vet`) |
 | `vetting/` | Scripts that run in the vetting environment (`requirements-vet.txt`) |
 | `find_planets.py` | Step 2: transit search and vetting |

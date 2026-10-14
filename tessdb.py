@@ -75,6 +75,10 @@ CREATE TABLE IF NOT EXISTS pixel_checks (
 CREATE TABLE IF NOT EXISTS pixel_verdicts (
     run_id INTEGER REFERENCES runs(run_id) ON DELETE CASCADE, star TEXT, candidate INTEGER,
     verdict TEXT, source TEXT, folder TEXT);
+CREATE TABLE IF NOT EXISTS depth_maps (
+    run_id INTEGER REFERENCES runs(run_id) ON DELETE CASCADE, star TEXT, candidate INTEGER,
+    verdict TEXT, source TEXT, target_dchi2 REAL, detect_dchi2 REAL, sectors_won TEXT,
+    ephemeris TEXT, detail TEXT, folder TEXT);
 CREATE TABLE IF NOT EXISTS reduction_checks (
     run_id INTEGER REFERENCES runs(run_id) ON DELETE CASCADE, star TEXT, candidate INTEGER,
     verdict TEXT, n_support INTEGER, n_contradict INTEGER, reference_ppm REAL, detail TEXT,
@@ -126,6 +130,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS u_pixel_verdicts ON pixel_verdicts (run_id, st
 CREATE UNIQUE INDEX IF NOT EXISTS u_reduction_checks ON reduction_checks (run_id, star, candidate);
 CREATE UNIQUE INDEX IF NOT EXISTS u_transit_fits ON transit_fits (run_id, star, candidate);
 CREATE UNIQUE INDEX IF NOT EXISTS u_fpp_checks ON fpp_checks (run_id, star, candidate);
+CREATE UNIQUE INDEX IF NOT EXISTS u_depth_maps ON depth_maps (run_id, star, candidate);
 CREATE UNIQUE INDEX IF NOT EXISTS u_injections ON injections (run_id, job);
 DROP VIEW IF EXISTS candidates_view;
 CREATE VIEW candidates_view AS
@@ -140,6 +145,9 @@ CREATE VIEW candidates_view AS
            c.flags, c.enrich_flags,
            (SELECT f.verdict || ' (' || printf('%+.1f', f.density_z) || ' sigma)' FROM transit_fits f
             WHERE f.run_id = c.run_id AND f.star = c.star AND f.candidate = c.candidate) AS density,
+           (SELECT d.verdict || CASE WHEN d.verdict = 'off_target' THEN ': ' || d.source ELSE '' END
+            FROM depth_maps d
+            WHERE d.run_id = c.run_id AND d.star = c.star AND d.candidate = c.candidate) AS depth_map,
            (SELECT x.label || ' (FPP ' || printf('%.3f', x.fpp) || ')' FROM fpp_checks x
             WHERE x.run_id = c.run_id AND x.star = c.star AND x.candidate = c.candidate) AS fpp,
            (SELECT group_concat(n.tag || ': ' || n.text, ' | ') FROM notes n WHERE n.star = c.star)
@@ -356,12 +364,28 @@ def ingest(folder, name=None, commit=None, note=None, targets=None, started=None
                              num(r.get("rp_earth")), num(r.get("rp_rs")), num(r.get("b")), num(r.get("a_rs")),
                              num(r.get("t14_h")), num(r.get("period")), num(r.get("t0")),
                              num(r.get("n_events")), json.dumps(r), fdir.name))
-                if r["verdict"] == "density_mismatch":
+                if r["verdict"] in ("density_mismatch", "duration_too_long"):
                     row = con.execute("SELECT cand_id FROM candidates WHERE run_id = ? AND star = ? "
                                       "AND candidate = ?", (run_id, r["target"], int(r["candidate"]))).fetchone()
                     if row:
                         con.execute("INSERT INTO candidate_flags VALUES (?,?,?)",
-                                    (row[0], "density_mismatch", "transit_fit"))
+                                    (row[0], f"fit_{r['verdict']}" if r["verdict"] == "duration_too_long"
+                                     else r["verdict"], "transit_fit"))
+        for ddir in sorted(folder.glob("depth_map*")):
+            if not (ddir / "depth_map.csv").exists():
+                continue
+            for r in read_csv(ddir / "depth_map.csv"):
+                add(con, f"{ddir.name}/depth_map.csv: {r['target']} candidate {r['candidate']}",
+                    "INSERT INTO depth_maps VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                    (run_id, r["target"], int(r["candidate"]), r["verdict"], r.get("source", ""),
+                     num(r.get("target_dchi2")), num(r.get("detect_dchi2")), r.get("sectors_won", ""),
+                     r.get("ephemeris", ""), r.get("detail", ""), ddir.name))
+                if r["verdict"] == "off_target":
+                    row = con.execute("SELECT cand_id FROM candidates WHERE run_id = ? AND star = ? "
+                                      "AND candidate = ?", (run_id, r["target"], int(r["candidate"]))).fetchone()
+                    if row:
+                        con.execute("INSERT INTO candidate_flags VALUES (?,?,?)",
+                                    (row[0], "depth_map_off_target", "depth_map"))
         for xdir in sorted(folder.glob("fpp_check*")):
             if not (xdir / "fpp.csv").exists():
                 continue
@@ -382,7 +406,7 @@ def ingest(folder, name=None, commit=None, note=None, targets=None, started=None
                              r.get("rec_status"), r.get("rec_flags"), json.dumps(r)))
     counts = {t: con.execute(f"SELECT count(*) FROM {t} WHERE run_id = ?", (run_id,)).fetchone()[0]
               for t in ("searches", "candidates", "pixel_checks", "pixel_verdicts", "reduction_checks",
-                        "transit_fits", "fpp_checks", "vsx_shortlist", "injections")}
+                        "transit_fits", "depth_maps", "fpp_checks", "vsx_shortlist", "injections")}
     print(f"ingested {name} ({'+'.join(kinds)}): " + ", ".join(f"{v} {k}" for k, v in counts.items() if v))
     if not (commit or info.get("commit")):
         print("  note: no code version recorded (no run_info.json); pass --commit if known")

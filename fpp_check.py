@@ -21,6 +21,7 @@ Label (thresholds of Giacalone et al. 2021):
   likely_nearby_fp   NFPP > 0.1 (another star is the likely source)
   unclear            anything else
   no_aperture        no SPOC or TESS-SPOC sector (QLP publishes no apertures)
+  off_target         depth_map_check.py puts the dip on another star: not run
   too_large          fitted radius above MAX_RP_EARTH: TRICERATOPS's priors are for
                      planets up to ~8 Earth radii, so its FPP isn't meaningful
 FPP and NFPP are means over --runs repeats (TRICERATOPS is a Monte Carlo estimate);
@@ -137,10 +138,18 @@ def main():
     outdir.mkdir(parents=True, exist_ok=True)
     if args.neb_radius and not args.target:
         sys.exit("--neb-radius applies to one --target (the pixel evidence is per star)")
+    stale = outdir / "fpp.csv"
     if not (fitdir / "transit_fit.csv").exists():
         logging.info(f"no {fitdir / 'transit_fit.csv'}: nothing to check")
+        if not args.target:
+            stale.unlink(missing_ok=True)     # a rerun must not leave an earlier run's results
         return 0
     fits_df = pd.read_csv(fitdir / "transit_fit.csv")
+    dmcsv = src.parent / "depth_map" / "depth_map.csv"
+    off = {}
+    if dmcsv.exists():
+        dmv = pd.read_csv(dmcsv)
+        off = {(r.target, int(r.candidate)): r.source for r in dmv[dmv.verdict == "off_target"].itertuples()}
     sel = fits_df[fits_df.verdict == "consistent"]
     if args.target:
         sel = sel[sel.target == args.target]
@@ -148,11 +157,19 @@ def main():
             sel = sel[sel.candidate == args.candidate]
     logging.info(f"{len(sel)} candidate(s) with a consistent transit fit")
     if sel.empty:
+        if not args.target:
+            stale.unlink(missing_ok=True)
         return 0
     rows = []
     for _, f in sel.iterrows():
         try:
             radius = args.neb_radius
+            if (f["target"], int(f["candidate"])) in off:
+                src_star = off[(f["target"], int(f["candidate"]))]
+                logging.info(f"{f['target']} #{f['candidate']}: off target by the depth map ({src_star}); not run")
+                rows.append(dict(target=f["target"], candidate=int(f["candidate"]), label="off_target",
+                                 detail=f"depth map: dip on {src_star}"))
+                continue
             rows.append(check_one(f, outdir, fitdir, args.draws, args.runs, radius))
         except Exception as e:
             logging.exception(f"  {f['target']} #{f['candidate']} failed")
