@@ -93,7 +93,12 @@ VARIABLE_CATALOGUES = {         # VizieR: label -> (catalogue, name column, peri
     "Gaia-EB": ("I/358/veb", "Source", lambda r: 1 / r["Freq"] if r["Freq"] > 0 else np.nan),
     "Gaia-class": ("I/358/vclassre", "Source", lambda r: np.nan),
     "ZTF": ("J/ApJS/249/18", "ID", lambda r: r["Per"]),
+    # TESS Ten Thousand Catalog (Kostov et al. 2025, 2025ApJS..279...50K): vetted TESS FFI
+    # eclipsing binaries, new (table 3) and known (table 4). Most aren't in VSX yet
+    "T10k-new": ("J/ApJS/279/50/table3", "TIC", lambda r: r["Per"], "EB"),
+    "T10k-known": ("J/ApJS/279/50/table4", "TIC", lambda r: r["Per-TESS"], "EB"),
 }
+LATER_CATALOGUES = ("T10k-new", "T10k-known")   # added 2026-10-14: queried for older caches too
 EXOFOP_URL = "https://exofop.ipac.caltech.edu/tess/target.php"
 TCE_PERIOD_TOL = 0.003          # relative tolerance for matching a SPOC TCE's period
 
@@ -200,10 +205,12 @@ def simbad_summary(coord):
             "sp_type": str(r["sp_type"]), "sep": round(float(np.min(sep)), 1)}
 
 
-def variables_near(coord):
+def variables_near(coord, labels=None):
     v = Vizier(columns=["**", "+_r"], row_limit=-1)
     out = []
-    for label, (cat, name_col, period) in VARIABLE_CATALOGUES.items():
+    for label, (cat, name_col, period, *default_type) in VARIABLE_CATALOGUES.items():
+        if labels is not None and label not in labels:
+            continue
         res = retry(f"{label} query", lambda: v.query_region(
             coord, radius=VAR_RADIUS_ARCMIN * u.arcmin, catalog=cat))
         if not res:
@@ -226,9 +233,11 @@ def variables_near(coord):
         seps = SkyCoord(np.asarray(tab[ra_col], float), np.asarray(tab[dec_col], float),
                         unit="deg").separation(coord).arcsec
         for r, sep in zip(tab, seps):
-            out.append({"cat": label, "name": str(r[name_col]), "sep": round(float(sep), 1),
+            out.append({"cat": label, "name": ("TIC " if name_col == "TIC" else "") + str(r[name_col]),
+                        "sep": round(float(sep), 1),
                         "type": str(r["Type"]) if "Type" in r.colnames
-                        else str(r["Class"]) if "Class" in r.colnames else "",
+                        else str(r["Class"]) if "Class" in r.colnames
+                        else default_type[0] if default_type else "",
                         "period": num(period(r))})
     return out
 
@@ -317,6 +326,12 @@ def fetch_star(name, cache_dir):
             info["gaia"] = retry("Gaia DR3", lambda: gaia_binarity(
                 gaia_id_of(row) if row is not None else None, coord)) or {}
             path.write_text(json.dumps(info, indent=1))
+        if not set(LATER_CATALOGUES) <= set(info.get("catalogues_checked", [])):
+            coord = SkyCoord(info["ra"] * u.deg, info["dec"] * u.deg)   # cache from before them
+            info["variables"] = [x for x in info.get("variables", []) if x["cat"] not in LATER_CATALOGUES] \
+                + variables_near(coord, LATER_CATALOGUES)
+            info["catalogues_checked"] = list(VARIABLE_CATALOGUES)
+            path.write_text(json.dumps(info, indent=1))
         if "spoc_tces" not in info:                      # cache from before the TCE check
             tces = retry("SPOC TCEs", lambda: spoc_tces(info["tic"]))
             if tces is not None:
@@ -331,7 +346,7 @@ def fetch_star(name, cache_dir):
     info = {"tic": tic, "ra": coord.ra.deg, "dec": coord.dec.deg, "tmag": num(row["Tmag"]),
             "exofop": retry("ExoFOP", lambda: exofop_summary(tic)) or {},
             "simbad": retry("SIMBAD", lambda: simbad_summary(coord)) or {},
-            "variables": variables_near(coord),
+            "variables": variables_near(coord), "catalogues_checked": list(VARIABLE_CATALOGUES),
             "neighbours": retry("TIC neighbours", lambda: tic_neighbours(coord, tic)) or []}
     info["gaia"] = retry("Gaia DR3", lambda: gaia_binarity(gaia_id_of(row), coord)) or {}
     tces = retry("SPOC TCEs", lambda: spoc_tces(tic))

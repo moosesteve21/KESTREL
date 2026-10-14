@@ -355,12 +355,17 @@ star's file in `enrich_cache/` first, or the old cached answer is reused.
 
 **VSX shortlist.** `vsx_shortlist.py results/<name>` (a pipeline step after the pixel and
 reduction checks) lists the run's signals that look like variable stars rather than transits, for
-the weekly VSX session. It looks for sinusoidal variability, a secondary eclipse, a
+the weekly VSX session. The catalogue step (`enrich_candidates.py`) checks VSX, Gaia DR3 (eclipsing binaries and
+classes), ZTF and the TESS Ten Thousand Catalog. It looks for sinusoidal variability, a secondary eclipse, a
 phase-curve residual at P ≤ 3 d, or an odd/even difference over enough transits. TOIs,
 CTOIs and signals matching a variable on another star are skipped. Each listed star is
-in one of two groups:
+in one of four groups:
 - `new`: no VSX entry at the target. Other catalogues that have it, such as Gaia DR3
   classes or ZTF, are listed alongside.
+- `published`: not in VSX (or in VSX without this period), but the **TESS Ten Thousand
+  Catalog** (Kostov et al. 2025, 2025ApJS..279...50K; VizieR J/ApJS/279/50, tables 3 and 4)
+  has it as an eclipsing binary at this period. It still belongs in VSX, but as a published
+  star with that reference, not as our discovery. Most of its 7,936 new EBs aren't in VSX yet.
 - `period`: in VSX, but with no period, or a period TESS doesn't confirm. A match only as
   a one-day alias counts as unconfirmed, because TESS observes continuously, so it's the
   catalogue period that's the alias.

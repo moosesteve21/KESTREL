@@ -560,7 +560,7 @@ def serve(port):
         "watchlist": {"description": "Candidates re-tested as new TESS sectors arrive (watchlist.py check): "
                       "verdict from the events in sectors released after the candidate was found"},
         "vsx_shortlist_view": {"description": "Variable-star signals for the weekly VSX session "
-                               "(vsx_shortlist.py): group 'new' = not in VSX, 'period' = in VSX "
+                               "(vsx_shortlist.py): group 'new' = not in VSX, 'published' = in the TESS Ten Thousand Catalog (2025ApJS..279...50K) at this period, 'period' = in VSX "
                                "without the TESS period. notes shows stars already queued or submitted",
                                "facets": ["group", "run"]},
         "catalog": {"description": "Whole-sky target catalogue: score = expected SNR of a "

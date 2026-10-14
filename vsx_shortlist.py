@@ -21,6 +21,10 @@ rather than a transit, and VSX either lacks it or disagrees with TESS:
   groups:
       new     no VSX entry at the target (other catalogues that have it are listed:
               Gaia DR3 classes and ZTF entries are often missing from VSX)
+      published  not in VSX, or in VSX without this period, but the TESS Ten Thousand
+              Catalog (Kostov et al. 2025, 2025ApJS..279...50K) has it as an eclipsing
+              binary at this period: submit it as a published star (or a revision)
+              with that reference, not as a discovery
       period  in VSX, but without a period, or with one TESS doesn't confirm: no
               match at all, or a match only as a one-day alias (TESS observes
               continuously, so an alias match means the catalogue period is the
@@ -167,6 +171,10 @@ def shortlist(folder):
             if confirmed:
                 continue
             group = "period"
+        # what we'd submit (an EB at this period) is already published there
+        if any(v["cat"].startswith("T10k") and np.isfinite(v["period"])
+               and any("alias" not in t for _, t in period_matches(P, [v])) for v in others):
+            group = "published"
         blends = r.get("blend_suspects") if isinstance(r.get("blend_suspects"), str) else ""
         if "OFF-TARGET" in pix:                         # the dip may be on a neighbour
             plausible, faint = off_target_sources(pix, float(r["depth_ppm"]) * 1e-6, info.get("tmag"))
@@ -215,7 +223,7 @@ def main():
             continue
         loaded = not args.no_db and load_into_db(f)
         n = res["group"].value_counts().to_dict()
-        print(f"{f}: {len(res)} for VSX review (new {n.get('new', 0)}, period {n.get('period', 0)}, "
+        print(f"{f}: {len(res)} for VSX review (new {n.get('new', 0)}, published {n.get('published', 0)}, period {n.get('period', 0)}, "
               f"blend {n.get('blend', 0)})"
               + (", loaded into tess.db" if loaded else ""))
         for _, r in res.iterrows():
