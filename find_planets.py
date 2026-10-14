@@ -32,7 +32,10 @@ Changes from the earlier version (find_planets_v2.py, tag pre-cleanup):
     star allows are flagged duration_too_long_for_star.
   - The depth is measured in each sector separately (sector_depths_ppm column):
     depth_varies_by_sector and dip_missing_in_sector catch blended eclipsing
-    binaries whose depth changes with each pipeline's aperture.
+    binaries whose depth changes with each pipeline's aperture. Long exposures
+    (30-min FFIs) make short transits look shallower: each sector's depth is
+    corrected using the dip's own shape, and sectors keeping under SMEAR_MIN of
+    the dip are left out of the comparison.
   - Per-sector timing (sector_timing_min column): after removing a linear drift,
     dips that wander by more than TIMING_TOL durations are flagged
     timing_varies_by_sector - typical of evolving starspots, not eclipses.
@@ -155,6 +158,9 @@ SECTOR_Z       = 5.0            # a sector's depth this many sigma from the mean
 SECTOR_REL     = 0.3            # ...and differing by this fraction is flagged. Pipelines
                                 # correct for neighbouring stars differently, so up to
                                 # ~15-20% differences are normal
+SMEAR_MIN      = 0.5            # a sector whose exposure keeps less than this fraction
+                                # of the dip (30-min data on a ~0.5 h transit) is left out
+                                # of the depth comparison; others are corrected for it
 TIMING_Z       = 5.0            # sector dips at least this significant get a timing...
 TIMING_TOL     = 0.5            # ...and are flagged if, after removing a linear drift (a
                                 # slightly wrong period), they sit more than this many
@@ -167,6 +173,12 @@ DUR_MARGIN_FIT = 1.3            # with a fitted duration (not the coarse BLS gri
                                 # durations above this multiple of the longest possible
 ASYM_SIGMA     = 3.0            # asymmetric_dip: the two sides differ by this many sigma...
 ASYM_FRAC      = 0.25           # ...and by this fraction of the depth
+V_FRAC         = 0.4            # v_shaped: the best trapezoid's ingress takes more than this
+V_DCHI2        = 9.0            # fraction of the half-duration, and limiting it to V_FRAC
+                                # worsens chi2 (scaled by the fit's reduced chi2) by this much.
+                                # Grazing: an eclipsing binary, or a planet at high impact
+                                # parameter. Informational (INFO_FLAGS): it doesn't stop clean
+INFO_FLAGS     = {"v_shaped"}   # shown with a signal, but don't make it flagged
 FIT_STARTS     = ((1.0, 0.3),) + tuple((m, f) for m in (0.5, 1.0, 1.5, 2.0, 2.5) for f in (0.3, 0.8))
                                 # shape-fit starting points (duration multiple, ingress fraction);
                                 # the best fit wins. A single start at the BLS duration can stop
@@ -186,7 +198,7 @@ DUMP_FRAC      = 0.5            # flag when more than this fraction of transits 
                                 # (hot Jupiters' secondaries are a few hundred ppm at most)
 
 CSV_FIELDS = ["target", "candidate", "period_d", "t0_btjd", "duration_h", "depth_ppm",
-              "snr", "snr_white", "snr_without_best_events", "dips", "consistency_z", "sde", "n_transits", "odd_even_sigma", "one_sided_frac", "rp_earth", "max_dur_h", "sector_depths_ppm", "sector_timing_min", "period_x2_d", "mask_width_h", "secondary_ppm", "dump_near", "dur_fit_h", "asym_sigma", "oe_dt_min", "sde_margin", "model_shift", "status", "flags",
+              "snr", "snr_white", "snr_without_best_events", "dips", "consistency_z", "sde", "n_transits", "odd_even_sigma", "one_sided_frac", "rp_earth", "max_dur_h", "sector_depths_ppm", "sector_timing_min", "period_x2_d", "mask_width_h", "secondary_ppm", "dump_near", "dur_fit_h", "ingress_frac", "asym_sigma", "oe_dt_min", "sde_margin", "model_shift", "status", "flags",
               "n_sectors", "sources", "span_d", "plot", "timestamp"]
 
 
@@ -595,8 +607,20 @@ def fit_shape(t, y, dy, P, T0, D, depth0):
         return None
     f = best
     dtc, dp, depth, t14, frac = f.x
-    return dict(dtc=dtc, P=P + dp, depth=depth, t14=t14, tau=frac * t14 / 2,
-                chi2r=np.sum(f.fun ** 2) / max(1, len(yy) - 5))
+    chi2 = np.sum(f.fun ** 2)
+    chi2r = chi2 / max(1, len(yy) - 5)
+    v_dchi2 = 0.0
+    if frac > V_FRAC:                           # how much worse is a flatter-bottomed dip?
+        hi_v = hi[:4] + [V_FRAC]
+        x0 = np.clip(f.x, lo, hi_v)
+        x0[4] = 0.99 * V_FRAC
+        try:
+            g = least_squares(lambda p: (yy - model(p)) / ee, x0, bounds=(lo, hi_v))
+            v_dchi2 = float((np.sum(g.fun ** 2) - chi2) / max(chi2r, 1.0))
+        except Exception:
+            pass
+    return dict(dtc=dtc, P=P + dp, depth=depth, t14=t14, tau=frac * t14 / 2, frac=frac,
+                v_dchi2=v_dchi2, chi2r=chi2r)
 
 
 def shape_tests(t, y, dy, P, T0, fit):
@@ -738,26 +762,103 @@ def one_sided_fraction(t, P, T0, D):
     return float(np.mean((n_b[has] < need) | (n_a[has] < need)))
 
 
-def sector_depths(t, y, P, T0, D, sectors):
-    """Depth measured separately in each sector: (label, depth, error) for sectors
-    with enough data in and beside the transits. A planet's depth is the same in
+def smearing(t, y, P, T0, D, sectors, shift):
+    """Fraction of the in-window dip depth each sector keeps, given its exposure,
+    relative to the shortest-cadence sectors: {label: fraction}. A long exposure
+    averages the dip with the flux around it, so a short transit looks shallower in
+    30-min data. The dip's shape (box or V) matters, so it is taken from the
+    shortest-cadence data itself: the folded profile, smoothed by each exposure."""
+    cad = {}
+    for label, lo, hi in sectors:
+        s = (t >= lo) & (t <= hi)
+        if s.sum() > 10:
+            cad[label] = float(np.median(np.diff(t[s])))
+    if not cad:
+        return {}
+    emin, emax = min(cad.values()), max(cad.values())
+    if emax < 2 * emin or emax < D / 10:          # loses under ~2.5% even for a box
+        return {k: 1.0 for k in cad}
+    ref = np.zeros(len(t), bool)
+    dt = np.zeros(len(t))                         # each sector's own dip time
+    for label, lo, hi in sectors:
+        s = (t >= lo) & (t <= hi)
+        dt[s] = shift.get(label, 0.0)
+        if cad.get(label, np.inf) <= 1.5 * emin:
+            ref |= s
+    x = np.abs((t[ref] - T0 - dt[ref] + 0.5 * P) % P - 0.5 * P)
+    yr = y[ref]
+    near = (x > 0.75 * D) & (x < 2.5 * D)
+    if near.sum() < 10:
+        return {k: 1.0 for k in cad}
+    base = np.mean(yr[near])
+    reach = min(0.5 * D + 0.5 * emax, 2.5 * D)
+    w = max(emin, D / 12)
+    edges = np.arange(0, reach + w, w)
+    idx = np.digitize(x, edges) - 1
+    prof = np.full(len(edges) - 1, np.nan)
+    for b in range(len(prof)):
+        m = idx == b
+        if m.sum() >= 3:
+            prof[b] = base - np.mean(yr[m])
+    mid = 0.5 * (edges[:-1] + edges[1:])
+    ok = np.isfinite(prof)
+    if ok.sum() < 3:
+        return {k: 1.0 for k in cad}
+    h = D / 100
+    grid = np.arange(-(0.5 * D + 0.5 * emax), 0.5 * D + 0.5 * emax + h, h)
+    p = np.where(np.abs(grid) <= reach, np.interp(np.abs(grid), mid[ok], prof[ok]), 0.0)
+    cs = np.concatenate([[0.0], np.cumsum(p)])
+    win = np.abs(grid) < 0.5 * D
+
+    def kept(e):                                  # in-window mean after a box of width e
+        k = max(1, int(round(e / h)))
+        lo = np.clip(np.arange(len(grid)) - k // 2, 0, len(grid))
+        sm = (cs[np.clip(lo + k, 0, len(grid))] - cs[lo]) / k
+        return np.mean(sm[win])
+
+    r = kept(emin)
+    if r <= 0:
+        return {k: 1.0 for k in cad}
+    return {k: float(np.clip(kept(e) / r, 0.0, 1.0)) if e >= 2 * emin else 1.0
+            for k, e in cad.items()}
+
+
+def sector_depths(t, y, P, T0, D, sectors, shift=None):
+    """Depth measured separately in each sector: (label, depth, error, kept) for
+    sectors with enough data in and beside the transits. A planet's depth is the same in
     every sector; a blended eclipsing binary's changes with each pipeline's
-    aperture, and mixed data can hide a dip that is missing from some sectors."""
-    ph = (t - T0 + 0.5 * P) % P - 0.5 * P
-    inn = np.abs(ph) < 0.5 * D
-    near = (np.abs(ph) > 0.75 * D) & (np.abs(ph) < 2.5 * D)
+    aperture, and mixed data can hide a dip that is missing from some sectors.
+    Depth and error are corrected for exposure smearing (divided by kept, the
+    fraction of the dip the sector's exposure keeps; see smearing()). shift:
+    {label: offset in days} of each sector's dip from the ephemeris
+    (sector_shifts())."""
+    shift = shift or {}
     need = max(3, 0.5 * D / np.median(np.diff(t)))
+    keep = smearing(t, y, P, T0, D, sectors, shift)
     out = []
     for label, lo, hi in sectors:
         s = (t >= lo) & (t <= hi)
-        i, o = s & inn, s & near
+        ph = np.abs((t - T0 - shift.get(label, 0.0) + 0.5 * P) % P - 0.5 * P)
+        i, o = s & (ph < 0.5 * D), s & (ph > 0.75 * D) & (ph < 2.5 * D)
         if i.sum() < need or o.sum() < 2 * need:
             continue
-        rest = y[s & ~inn]
+        rest = y[s & ~i]
         sig = 1.4826 * np.median(np.abs(rest - np.median(rest)))
         d = np.mean(y[o]) - np.mean(y[i])
-        out.append((label, float(d), float(sig * np.sqrt(1 / i.sum() + 1 / o.sum()))))
+        f = keep.get(label, 1.0)
+        f_div = max(f, 1e-3)
+        out.append((label, float(d / f_div), float(sig * np.sqrt(1 / i.sum() + 1 / o.sum()) / f_div), f))
     return out
+
+
+def sector_text(x):
+    """One sector's depth for the CSV. Corrected depths show the factor they were
+    divided by; sectors too smeared to compare show the depth as measured."""
+    label, d, e, f = x
+    if f >= SMEAR_MIN:
+        note = f"(/{f:.2f})" if f < 0.95 else ""
+        return f"{label}={d * 1e6:.0f}+-{e * 1e6:.0f}{note}"
+    return f"{label}={d * f * 1e6:.0f}+-{e * f * 1e6:.0f}(smeared x{f:.2f}, not compared)"
 
 
 def sector_timing(t, y, P, T0, D, W, sectors):
@@ -791,6 +892,20 @@ def sector_timing(t, y, P, T0, D, W, sectors):
     return out
 
 
+def sector_shifts(series, sectors, D):
+    """Where each sector's dip should sit, from a linear drift fitted to the
+    sector timings: {label: offset in days}. Over a long baseline the search's
+    period is slightly off (its grid is capped), so a fixed ephemeris can miss
+    part of an early or late sector's dip and make it look shallower. Offsets are
+    capped at one duration; fewer than two timed sectors gives no shifts."""
+    if len(series) < 2:
+        return {}
+    tm = np.array([x[2] for x in series])
+    off = np.array([x[1] for x in series])
+    a, b = np.polyfit(tm, off, 1)
+    return {label: float(np.clip(a * 0.5 * (lo + hi) + b, -D, D)) for label, lo, hi in sectors}
+
+
 def timing_varies(series, D):
     """True if, after removing a linear drift (a slightly wrong period), any
     sector's dip sits more than TIMING_TOL durations from the prediction."""
@@ -817,9 +932,10 @@ def vet(P, D, depth, stats, found, n_c, one_sided, star, per_sector):
             flags.append("too_large_for_planet")
         if D > DUR_MARGIN * max_duration(P, star, k):
             flags.append("duration_too_long_for_star")
-    if len(per_sector) >= 2:
-        d = np.array([x[1] for x in per_sector])
-        e = np.array([x[2] for x in per_sector])
+    usable = [x for x in per_sector if x[3] >= SMEAR_MIN]  # too smeared to compare
+    if len(usable) >= 2:
+        d = np.array([x[1] for x in usable])
+        e = np.array([x[2] for x in usable])
         dw = np.sum(d / e ** 2) / np.sum(1 / e ** 2)          # weighted mean depth
         if np.any((np.abs(d - dw) > SECTOR_Z * e) & (np.abs(d - dw) > SECTOR_REL * abs(dw))):
             flags.append("depth_varies_by_sector")
@@ -1063,7 +1179,7 @@ def search_once(lc, found, excluded, k, star=None, sectors=(), dumps=()):
             logging.info(f"     related to the {Pf:.5f} d planet: {what}")
             return dict(kind="same_period", flags=[f"related_to_{Pf:.4f}", what],
                         oe_sig=0.0, one_sided=0.0, per_sector=[], timing={}, star=None,
-                        sec=(np.nan, np.nan), dump="", dur_fit=np.nan, asym=np.nan, oe_dt=np.nan,
+                        sec=(np.nan, np.nan), dump="", dur_fit=np.nan, frac=np.nan, asym=np.nan, oe_dt=np.nan,
                         ms=(np.nan, np.nan), rival=(np.nan, np.nan), mask=(P, T0, D), **common)
 
     if n_c < 3:
@@ -1079,7 +1195,9 @@ def search_once(lc, found, excluded, k, star=None, sectors=(), dumps=()):
         return dict(kind="inconsistent", mask=(P, T0, D))
 
     one_sided = one_sided_fraction(t, P, T0, D)
-    per_sector = sector_depths(t, y, P, T0, D, sectors)
+    W = dip_width(t, y, P, T0, D)
+    shift = sector_shifts(sector_timing(t, y, P, T0, D, W, sectors), sectors, D)
+    per_sector = sector_depths(t, y, P, T0, D, sectors, shift)
     n_near, n_tot, dump_text = dump_proximity(t, P, T0, D, dumps, sectors)
     flags, n_tr, oe_sig = vet(P, D, depth, stats, found, n_c, one_sided, star, per_sector)
     rival_sde, rival_p = rival_peak(res.period, z, P, [f[0] for f in found])
@@ -1092,9 +1210,9 @@ def search_once(lc, found, excluded, k, star=None, sectors=(), dumps=()):
     # measured shape: duration (replacing the coarse BLS value in the stellar test),
     # symmetry, odd/even timing
     fit = fit_shape(t, y, dy, P, T0, D, depth)
-    dur_fit, asym, oe_dt, oe_err = np.nan, np.nan, np.nan, np.nan
+    dur_fit, asym, oe_dt, oe_err, frac = np.nan, np.nan, np.nan, np.nan, np.nan
     if fit:
-        dur_fit = fit["t14"]
+        dur_fit, frac = fit["t14"], fit["frac"]
         if star and fit["depth"] > 0:
             mx = max_duration(P, star, np.sqrt(fit["depth"]))
             flags[:] = [f for f in flags if f != "duration_too_long_for_star"]
@@ -1106,6 +1224,8 @@ def search_once(lc, found, excluded, k, star=None, sectors=(), dumps=()):
         if np.isfinite(oe_dt) and abs(oe_dt) > OE_TIME_SIGMA * oe_err and \
                 abs(oe_dt) > OE_TIME_FRAC * dur_fit * 1440:
             flags.append("odd_even_timing")
+        if fit["frac"] > V_FRAC and fit["v_dchi2"] > V_DCHI2:
+            flags.append("v_shaped")
     if n_tot >= 3 and n_near >= 3 and n_near / n_tot > DUMP_FRAC:
         flags.append("near_momentum_dumps")         # may be a pointing artefact
     if np.isfinite(sec) and sec > SEC_SIGMA * sec_err and \
@@ -1113,7 +1233,6 @@ def search_once(lc, found, excluded, k, star=None, sectors=(), dumps=()):
         flags.append("significant_secondary")       # a stellar companion's second eclipse
     # Timing per sector. For a double-period variable, time each minimum at 2P:
     # folded at P they overlap, and a fixed one hides a wandering one.
-    W = dip_width(t, y, P, T0, D)
     if "double_period_variable" in flags:
         timing = {"A": sector_timing(t, y, 2 * P, T0, D, W, sectors),
                   "B": sector_timing(t, y, 2 * P, T0 + P, D, W, sectors)}
@@ -1125,7 +1244,7 @@ def search_once(lc, found, excluded, k, star=None, sectors=(), dumps=()):
                 snr_white=snr_white, snr_loo=snr_loo, sde=sde,
                 dips=f"{dips}/{n_c}", cz=cz, flags=flags, n_tr=n_tr, oe_sig=oe_sig,
                 one_sided=one_sided, per_sector=per_sector, timing=timing, star=star,
-                sec=(sec, sec_err), dump=dump_text, dur_fit=dur_fit, asym=asym, oe_dt=oe_dt,
+                sec=(sec, sec_err), dump=dump_text, dur_fit=dur_fit, frac=frac, asym=asym, oe_dt=oe_dt,
                 ms=(ms2, ms3), rival=(rival_sde, rival_p),
                 res=res, z=z, t=t, y=y)
 
@@ -1191,9 +1310,9 @@ def search_star(lc, name, n_sectors, outdir, writer, fh, sources="", star=None, 
         if c["kind"] == "same_period":
             status = "same_period"
         else:
-            status = "flagged" if c["flags"] else "clean"
+            status = "flagged" if set(c["flags"]) - INFO_FLAGS else "clean"
         # ambiguous_period alone doesn't count as junk: the rival may be a second planet
-        serious = [f for f in c["flags"] if f != "ambiguous_period"]
+        serious = [f for f in c["flags"] if f != "ambiguous_period" and f not in INFO_FLAGS]
         junk_run = 0 if status != "same_period" and not serious else junk_run + 1
         mask = mask_duration(c)
         if mask[2] > 1.05 * c["D"]:
@@ -1213,8 +1332,7 @@ def search_star(lc, name, n_sectors, outdir, writer, fh, sources="", star=None, 
                          if c["star"] else ""),
             "max_dur_h": (f"{max_duration(c['P'], c['star'], np.sqrt(max(c['depth'], 0))) * 24:.2f}"
                           if c["star"] else ""),
-            "sector_depths_ppm": ";".join(f"{x[0]}={x[1] * 1e6:.0f}+-{x[2] * 1e6:.0f}"
-                                          for x in c["per_sector"]),
+            "sector_depths_ppm": ";".join(sector_text(x) for x in c["per_sector"]),
             "sector_timing_min": " | ".join(
                 (f"{k}: " if k else "") + ";".join(f"{lab}={o * 1440:+.0f}" for lab, o, _ in v)
                 for k, v in c["timing"].items() if v),
@@ -1223,6 +1341,7 @@ def search_star(lc, name, n_sectors, outdir, writer, fh, sources="", star=None, 
             "mask_width_h": f"{mask[2] * MASK_PAD * 24:.2f}",
             "dump_near": c["dump"],
             "dur_fit_h": f"{c['dur_fit'] * 24:.2f}" if np.isfinite(c["dur_fit"]) else "",
+            "ingress_frac": f"{c['frac']:.2f}" if np.isfinite(c["frac"]) else "",
             "asym_sigma": f"{c['asym']:.1f}" if np.isfinite(c["asym"]) else "",
             "oe_dt_min": f"{c['oe_dt']:+.0f}" if np.isfinite(c["oe_dt"]) else "",
             "sde_margin": (f"{c['sde'] - c['rival'][0]:.2f}@{c['rival'][1]:.4f}"
@@ -1258,7 +1377,7 @@ def write_rows(pending, name, writer, fh):
             if any(related_period(c["rival"][1], Po)[0] for Po in others):
                 c["flags"].remove("ambiguous_period")
                 row["flags"] = ";".join(c["flags"])
-                if row["status"] == "flagged" and not c["flags"]:
+                if row["status"] == "flagged" and not set(c["flags"]) - INFO_FLAGS:
                     row["status"] = "clean"
                 logging.info(f"     #{row['candidate']}: rival period {c['rival'][1]:.4f} d is another "
                              f"signal in this star; ambiguous_period dropped")

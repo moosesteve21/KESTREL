@@ -20,7 +20,16 @@ TIC 4206066
 # SNR ~10), 29 transits on an M dwarf. Must stay found and clean.
 TIC 302453503
 
+# Short transit in mixed cadence: TOI-7689.01 (Eschen & Kunimoto 2024), ~0.6 h, V-shaped,
+# with one 30-min FFI sector. Must be clean: exposure smearing isn't a depth change
+TIC 12999193
+
 # Reviewed false or doubtful signals: must not come out clean
 TIC 111784356
 TIC 298514156
 TIC 14566446
+
+# Depth changes between sectors (blends): must stay flagged depth_varies_by_sector
+TIC 39389004
+TIC 142178690
+TIC 83968926

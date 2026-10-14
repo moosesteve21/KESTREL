@@ -566,7 +566,7 @@ candidate's flags). Results go to `transit_fit/transit_fit.csv`: Rp, b, a/R*, T1
 ### 7. False-positive probability (consistent fits)
 
 ```bash
-.venv/bin/python fpp_check.py results/<name>/enriched.csv     # [--draws 1000000]
+.venv/bin/python fpp_check.py results/<name>/enriched.csv     # [--draws 1000000] [--runs 10]
 ```
 
 For candidates whose fit is `consistent`, `fpp_check.py` runs TRICERATOPS
@@ -575,6 +575,15 @@ For candidates whose fit is `consistent`, `fpp_check.py` runs TRICERATOPS
 - **Inputs:** the same normalised transits, folded and binned, with SPOC and
   TESS-SPOC apertures. QLP publishes none, so QLP-only data can't be used. There's
   no contrast curve.
+- **Practice** (after Eschen & Kunimoto 2024):
+  - TRICERATOPS is a Monte Carlo estimate, so it runs 10 times (`--runs`) and FPP and NFPP
+    are the means; `detail` gives the spread.
+  - The fold is binned to 10 minutes, or to the longest cadence if longer (mixed 2-min
+    and 30-min data are binned to 30 min), and the model is integrated over the bin.
+  - When `pixel_check.py` places the dip on the target, only stars within 21″ (one
+    pixel) are kept as possible sources. `--neb-radius` (with `--target`) does the same
+    after a manual check such as `investigations/depth_map.py`.
+  - Above 8 R⊕ it isn't run (`too_large`): its priors are for planets.
 - **Output:** FPP, NFPP and the main scenarios, with a label: `validation_level`
   (FPP < 0.015, NFPP < 0.001), `likely_planet` (FPP < 0.5, NFPP < 0.001),
   `likely_nearby_fp` (NFPP > 0.1) or `unclear`. Written to `fpp_check/fpp.csv`.
@@ -702,7 +711,7 @@ For a quick look at one folder without the database, plain Python is enough:
 
 Each detected signal gets one of three statuses:
 
-- `clean`: no flags raised; worth a closer look.
+- `clean`: no flags raised, apart from informational ones (`v_shaped`); worth a closer look.
 - `flagged`: one or more vetting flags.
 - `same_period`: related to a signal already found at the same period: a
   `secondary_eclipse`, a `phase_curve_residual` or a `harmonic`.
@@ -722,7 +731,7 @@ Each detected signal gets one of three statuses:
 | `non_positive_depth` | Not a dip |
 | `too_large_for_planet` | Implied radius above 2 Jupiter radii |
 | `duration_too_long_for_star` | Longer than any transit the catalogued star allows. Uses the fitted duration (`dur_fit_h`) with a 1.3× margin; the coarse search duration with 1.5× if the fit fails. The shape fit starts from 11 durations and ingress shapes and keeps the best, because a single start at the search duration can stop in a short local minimum (TIC 111784356) |
-| `depth_varies_by_sector` | Depth differs between sectors; typical of a blend, since each sector's aperture lets in different amounts of a neighbour's light |
+| `depth_varies_by_sector` | Depth differs between sectors; typical of a blend, since each sector's aperture lets in different amounts of a neighbour's light. Each sector is measured at its own dip time (a linear drift fitted to the sector timings, since the search's period can be slightly off over a long baseline), and its depth is corrected for exposure smearing, using the dip's own shape from the shortest-cadence data: a 30-min exposure makes a short transit look shallower. Sectors keeping less than half the dip are shown as `(smeared xF, not compared)`; corrected ones as `(/F)`. TIC 12999193 (TOI-7689.01, 0.6 h) was wrongly flagged before this |
 | `dip_missing_in_sector` | The dip should be visible in some sector but isn't |
 | `timing_varies_by_sector` | Dips wander in time; eclipses and transits keep time, spot minima don't |
 | `significant_secondary` | A dip at phase 0.5 above 5σ and deeper than 10% of the main dip or 1000 ppm: a stellar companion's second eclipse (depth in `secondary_ppm`) |
@@ -732,6 +741,7 @@ Each detected signal gets one of three statuses:
 | `not_unique` | Model-shift test, after Kepler's Robovetter: folded at the period, another dip (or a brightening) is about as significant as the candidate, allowing for the number of independent phases (`model_shift` = ms2;ms3, flagged when either is below 0). Calibrated on 11 known planets and 50 recovered injections: none flagged |
 | `density_mismatch` | Added by `transit_fit.py` (step 6): the transit's stellar density differs from the TIC star's by more than 3σ. A blend or eclipsing binary, or (with the timing note) timing variations smearing the fit |
 | `odd_even_timing` | Odd and even transits are centred at different times: more than 3σ and 15% of the duration (`oe_dt_min`) |
+| `v_shaped` | **Informational: doesn't stop `clean`.** The trapezoid fit's ingress takes more than 40% of the half-duration (`ingress_frac`; 1 is a pure V), and a flatter-bottomed fit is worse by Δχ² > 9 (scaled by the fit's reduced χ²). Grazing: an eclipsing binary, or a planet at high impact parameter (TOI-7689.01 is one) |
 
 ### Catalogue flags (`enrich_flags` column)
 
@@ -742,6 +752,7 @@ Each detected signal gets one of three statuses:
 | `target_known_variable_period_match` | The target itself is a catalogued variable at this period |
 | `target_catalogued_variable` | A catalogued variable lies at the target's own position, with or without a period (Gaia's `SOLAR_LIKE` class is listed in `target_variable` but doesn't raise the flag) |
 | `has_toi` / `has_ctoi` | ExoFOP lists a TOI or community TOI |
+| `has_spoc_tce` | SPOC's own pipeline found this period (or 2× or ½×) as a threshold-crossing event, from its data-validation reports on MAST (the widest-range and latest reports). Known to SPOC even if never promoted to a TOI (one b020 candidate was such an unpromoted TCE). Details in `spoc_tces` |
 | `simbad_<type>` | SIMBAD classifies the target as something notable, such as `SB*` |
 | `gaia_ruwe_high` | RUWE above 1.4: extra wobble on the sky, often an unresolved companion |
 | `gaia_non_single_star` | Gaia fitted a binary (or companion) orbit |

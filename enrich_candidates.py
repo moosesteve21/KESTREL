@@ -26,7 +26,8 @@ For each candidate row:
     blend), known_planet_period_match (the target is a catalogued planet host),
     target_known_variable_period_match, target_catalogued_variable (any
     catalogued variable at the target, with or without a period), has_toi,
-    has_ctoi, simbad_<type>,
+    has_ctoi, has_spoc_tce (SPOC's own pipeline detected this period, or twice or
+    half it, as a TCE: a known signal even if never promoted to a TOI), simbad_<type>,
     gaia_ruwe_high, gaia_non_single_star, gaia_rv_variable, gaia_bp_rp_excess,
     gaia_multi_peak.
   - blend_suspects: neighbours that could produce the observed depth at all.
@@ -45,6 +46,8 @@ By default same_period rows are skipped (they repeat a logged signal); --all kee
 """
 import argparse
 import json
+import tempfile
+import xml.etree.ElementTree as ET
 import logging
 import re
 import time
@@ -59,7 +62,7 @@ import requests
 from astropy.coordinates import SkyCoord
 
 warnings.filterwarnings("ignore")
-from astroquery.mast import Catalogs   # noqa: E402
+from astroquery.mast import Catalogs, Observations   # noqa: E402
 from astroquery.simbad import Simbad   # noqa: E402
 from mastutil import set_mast_timeout  # noqa: E402
 set_mast_timeout()                    # give up on a stuck MAST query after 90 s, not 600
@@ -92,6 +95,7 @@ VARIABLE_CATALOGUES = {         # VizieR: label -> (catalogue, name column, peri
     "ZTF": ("J/ApJS/249/18", "ID", lambda r: r["Per"]),
 }
 EXOFOP_URL = "https://exofop.ipac.caltech.edu/tess/target.php"
+TCE_PERIOD_TOL = 0.003          # relative tolerance for matching a SPOC TCE's period
 
 
 # ------------------------------------------------------------------ helpers
@@ -138,6 +142,47 @@ def exofop_summary(tic):
         "companions": [f"{c.get('sep', '')}\" dmag {c.get('dmag', '')}"
                        for c in d.get("stellar_companions", [])],
     }
+
+
+def spoc_tces(tic):
+    """Threshold-crossing events from SPOC's data-validation reports on MAST:
+    [{sectors, period, epoch_btjd, mes, eb}]. Reads two reports' XML (~0.3 MB
+    each): the widest sector range and the latest, which together cover what
+    SPOC has searched. A star with no 2-min SPOC data has none."""
+    obs = Observations.query_criteria(obs_collection="TESS", target_name=str(tic),
+                                      dataproduct_type="timeseries")
+    if len(obs) == 0:
+        return []
+    prods = Observations.get_product_list(obs)
+    xml = prods[[str(f).endswith("_dvr.xml") for f in prods["productFilename"]]]
+    if len(xml) == 0:
+        return []
+
+    def rng(f):
+        m = re.search(r"-s(\d{4})-s(\d{4})-", f)
+        return (int(m[1]), int(m[2])) if m else (0, 0)
+    names = [str(f) for f in xml["productFilename"]]
+    widest = max(names, key=lambda f: (rng(f)[1] - rng(f)[0], rng(f)[1], f))
+    latest = max(names, key=lambda f: (rng(f)[1], rng(f)[1] - rng(f)[0], f))
+    want = sorted({widest, latest})
+    out = []
+    with tempfile.TemporaryDirectory() as tmp:
+        Observations.download_products(xml[[f in want for f in names]], download_dir=tmp,
+                                       cache=False)
+        for path in Path(tmp).rglob("*_dvr.xml"):
+            lo, hi = rng(path.name)
+            for c in ET.parse(path).getroot().iter("{http://www.nasa.gov/2018/TESS/DV}planetCandidate"):
+                out.append({"sectors": f"s{lo}-s{hi}", "period": float(c.get("orbitalPeriodInDays")),
+                            "epoch_btjd": float(c.get("epochTjd")),
+                            "mes": float(c.get("maxMultipleEventSigma")),
+                            "eb": c.get("suspectedEclipsingBinary") == "true"})
+    return out
+
+
+def tce_matches(P, tces):
+    """SPOC TCEs at the candidate's period, twice or half it."""
+    return [t for t in tces if any(abs(t["period"] / (P * m) - 1) < TCE_PERIOD_TOL
+                                   for m in (1.0, 2.0, 0.5))]
 
 
 def simbad_summary(coord):
@@ -272,6 +317,11 @@ def fetch_star(name, cache_dir):
             info["gaia"] = retry("Gaia DR3", lambda: gaia_binarity(
                 gaia_id_of(row) if row is not None else None, coord)) or {}
             path.write_text(json.dumps(info, indent=1))
+        if "spoc_tces" not in info:                      # cache from before the TCE check
+            tces = retry("SPOC TCEs", lambda: spoc_tces(info["tic"]))
+            if tces is not None:
+                info["spoc_tces"] = tces
+                path.write_text(json.dumps(info, indent=1))
         return info
     row = retry(f"TIC lookup for {name}", lambda: resolve_tic(name))
     if row is None:
@@ -284,6 +334,9 @@ def fetch_star(name, cache_dir):
             "variables": variables_near(coord),
             "neighbours": retry("TIC neighbours", lambda: tic_neighbours(coord, tic)) or []}
     info["gaia"] = retry("Gaia DR3", lambda: gaia_binarity(gaia_id_of(row), coord)) or {}
+    tces = retry("SPOC TCEs", lambda: spoc_tces(tic))
+    if tces is not None:                    # a failed query is retried next time
+        info["spoc_tces"] = tces
     path.write_text(json.dumps(info, indent=1))
     return info
 
@@ -384,7 +437,7 @@ def main():
 
     cols = {k: [] for k in ("tic_id", "simbad_id", "simbad_type", "simbad_sptype",
                             "exofop_tois", "exofop_ctois", "exofop_followup",
-                            "exofop_companions", "gaia_ruwe", "gaia_rv_chisq_pvalue",
+                            "exofop_companions", "spoc_tces", "gaia_ruwe", "gaia_rv_chisq_pvalue",
                             "gaia_c_star_sigmas", "target_variable", "n_variables_nearby",
                             "period_matches",
                             "n_blend_suspects", "min_blend_amp_pct", "blend_suspects",
@@ -418,6 +471,12 @@ def main():
             flags.append("has_toi")
         if ex.get("ctois"):
             flags.append("has_ctoi")
+        tces = tce_matches(float(r["period_d"]), s.get("spoc_tces", []))
+        if tces:
+            flags.append("has_spoc_tce")
+        cols["spoc_tces"].append("; ".join(
+            f"P={t['period']:.5f} d MES {t['mes']:.1f} ({t['sectors']}{', EB?' if t['eb'] else ''})"
+            for t in tces))
         if "*" in sb.get("otype", "") and sb.get("otype") not in ("*", "PM*", "**"):
             flags.append(f"simbad_{sb['otype']}")
         g = s.get("gaia", {})

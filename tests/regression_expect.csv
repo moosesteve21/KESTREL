@@ -15,3 +15,7 @@ TIC 302453503,3.629181,clean,,"L 642-3 candidate, b007; posted to Planet Hunters
 TIC 111784356,15.77763,not_clean,duration_too_long_for_star,dip too long for the star (rejected)
 TIC 298514156,26.69375,not_clean,ambiguous_period,HD 229793 (doubtful)
 TIC 14566446,16.65687,not_clean,ambiguous_period,period not unique (doubtful)
+TIC 12999193,1.482641,clean,,TOI-7689.01: 0.6 h transit with a 30-min sector (smearing)
+TIC 39389004,0.41600,not_clean,depth_varies_by_sector,"b008: depth 0.9-2.6 ppt by sector (2-min data)"
+TIC 142178690,20.4535,not_clean,depth_varies_by_sector,"b012: one sector ~3x shallower"
+TIC 83968926,13.5289,not_clean,depth_varies_by_sector,"b010: dip gone in later sectors"
