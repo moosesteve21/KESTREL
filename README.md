@@ -14,7 +14,8 @@ later investigation.
 ## Project overview
 
 **Who and why.** A one-person citizen-science project (Steve Price; Zooniverse:
-moosehunter21) that runs on a home Ubuntu server (8 cores / 16 threads, 30 GB) with an
+moosehunter21), inspired by Pavel Rabtsevich's TESS candidate around TIC 4206066, found with
+Claude Code (preprint doi:10.5281/zenodo.22967456; that star is now the regression benchmark). It runs on a home Ubuntu server (8 cores / 16 threads, 30 GB) with an
 AI coding assistant (Claude Code). The aim is to find transiting planets that the
 official TESS pipelines and the TOI process have missed, around bright (T 8–11), small
 (K and M) dwarfs that TESS has observed in only 1–6 sectors. Variable stars found along
