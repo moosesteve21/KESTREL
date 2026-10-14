@@ -178,8 +178,14 @@ across the sky and hand out the best ones not yet searched:
 ```bash
 .venv/bin/python tess_target_finder.py --build-catalog          # once (about 30 min; resumable)
 .venv/bin/python tess_target_finder.py --batch 90 --name b001   # each new batch
-tmux new -s tess './pipeline.sh targets/b001.txt results/b001 8 "batch b001"'
+tmux attach -t tess                                             # then, at its prompt:
+./pipeline.sh targets/b001.txt results/b001 8 "batch b001"
 ```
+
+Run batches at the prompt of the `tess` tmux session (created at boot; if it's missing,
+`server/start_sessions.sh` recreates just that one), not as the session's own command:
+`tmux new -s tess './pipeline.sh …'` closes the session when the run ends, taking its
+final output with it.
 
 - **`--build-catalog`** builds the catalogue in `db/tess.db`:
   - it queries the TIC in 15° sky boxes, 4 at a time, applying the stellar cuts below,
@@ -254,7 +260,7 @@ Change the output names for each field, or the previous field's files are overwr
 ### 2. Search
 
 ```bash
-tmux new -s tess './run_parallel.sh targets/<name>.txt results/<name> 8'
+./run_parallel.sh targets/<name>.txt results/<name> 8      # at the tess session's prompt
 ```
 
 Arguments are: the target list, an output folder, the number of workers

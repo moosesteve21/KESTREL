@@ -148,7 +148,8 @@ CREATE VIEW candidates_view AS
            (SELECT d.verdict || CASE WHEN d.verdict = 'off_target' THEN ': ' || d.source ELSE '' END
             FROM depth_maps d
             WHERE d.run_id = c.run_id AND d.star = c.star AND d.candidate = c.candidate) AS depth_map,
-           (SELECT x.label || ' (FPP ' || printf('%.3f', x.fpp) || ')' FROM fpp_checks x
+           (SELECT x.label || CASE WHEN x.fpp IS NULL THEN '' ELSE ' (FPP ' || printf('%.3f', x.fpp) || ')' END
+            FROM fpp_checks x
             WHERE x.run_id = c.run_id AND x.star = c.star AND x.candidate = c.candidate) AS fpp,
            (SELECT group_concat(n.tag || ': ' || n.text, ' | ') FROM notes n WHERE n.star = c.star)
                AS notes
