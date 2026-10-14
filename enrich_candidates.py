@@ -26,7 +26,8 @@ For each candidate row:
     blend), known_planet_period_match (the target is a catalogued planet host),
     target_known_variable_period_match, target_catalogued_variable (any
     catalogued variable at the target, with or without a period), has_toi,
-    has_ctoi, has_spoc_tce (SPOC's own pipeline detected this period, or twice or
+    has_ctoi, catalogue_check_incomplete (a catalogue query still failed after its
+    retries; the failure isn't cached, so rerunning completes it), has_spoc_tce (SPOC's own pipeline detected this period, or twice or
     half it, as a TCE: a known signal even if never promoted to a TOI), simbad_<type>,
     gaia_ruwe_high, gaia_non_single_star, gaia_rv_variable, gaia_bp_rp_excess,
     gaia_multi_peak.
@@ -104,14 +105,20 @@ TCE_PERIOD_TOL = 0.003          # relative tolerance for matching a SPOC TCE's p
 
 
 # ------------------------------------------------------------------ helpers
+FAILED = object()      # retry()'s result when every attempt failed (not "found nothing")
+
+
 def retry(what, fn):
+    """fn()'s result, or FAILED after QUERY_TRIES failed attempts. A failure is never
+    cached as an empty answer: the section is listed in the star's "failed" list,
+    retried on the next run, and its signals get catalogue_check_incomplete."""
     for attempt in range(1, QUERY_TRIES + 1):
         try:
             return fn()
         except Exception as e:
             if attempt == QUERY_TRIES:
-                logging.warning(f"  {what} failed ({type(e).__name__}: {e}); skipped")
-                return None
+                logging.warning(f"  {what} failed ({type(e).__name__}: {e}); will retry next run")
+                return FAILED
             time.sleep(20 * attempt)
 
 
@@ -206,13 +213,17 @@ def simbad_summary(coord):
 
 
 def variables_near(coord, labels=None):
+    """(entries, labels of catalogues whose query failed)."""
     v = Vizier(columns=["**", "+_r"], row_limit=-1)
-    out = []
+    out, failed = [], []
     for label, (cat, name_col, period, *default_type) in VARIABLE_CATALOGUES.items():
         if labels is not None and label not in labels:
             continue
         res = retry(f"{label} query", lambda: v.query_region(
             coord, radius=VAR_RADIUS_ARCMIN * u.arcmin, catalog=cat))
+        if res is FAILED:
+            failed.append(label)
+            continue
         if not res:
             continue
         # a catalogue can hold several tables (ZTF's has more than one): use the one with
@@ -239,7 +250,7 @@ def variables_near(coord, labels=None):
                         else str(r["Class"]) if "Class" in r.colnames
                         else default_type[0] if default_type else "",
                         "period": num(period(r))})
-    return out
+    return out, failed
 
 
 def tic_neighbours(coord, tic):
@@ -315,43 +326,58 @@ def gaia_flags(g):
     return flags
 
 
+def incomplete(info):
+    """Checks still missing for a star: failed sections plus unchecked catalogues."""
+    if not info:
+        return []
+    if "tic" not in info:
+        return info.get("failed", [])
+    return info.get("failed", []) + [c for c in VARIABLE_CATALOGUES
+                                     if c not in info.get("catalogues_checked", [])]
+
+
 def fetch_star(name, cache_dir):
-    """Everything catalogue-side for one star, cached as JSON."""
+    """Everything catalogue-side for one star, cached as JSON. Sections whose query
+    failed are listed in info["failed"] (never stored as empty answers) and fetched
+    again on the next run."""
     path = cache_dir / (re.sub(r"[^\w.-]+", "_", name) + ".json")
-    if path.exists():
-        info = json.loads(path.read_text())
-        if "gaia" not in info:                           # cache from before the Gaia checks
-            coord = SkyCoord(info["ra"] * u.deg, info["dec"] * u.deg)
-            row = retry(f"TIC lookup for {name}", lambda: resolve_tic(name))
-            info["gaia"] = retry("Gaia DR3", lambda: gaia_binarity(
-                gaia_id_of(row) if row is not None else None, coord)) or {}
-            path.write_text(json.dumps(info, indent=1))
-        if not set(LATER_CATALOGUES) <= set(info.get("catalogues_checked", [])):
-            coord = SkyCoord(info["ra"] * u.deg, info["dec"] * u.deg)   # cache from before them
-            info["variables"] = [x for x in info.get("variables", []) if x["cat"] not in LATER_CATALOGUES] \
-                + variables_near(coord, LATER_CATALOGUES)
-            info["catalogues_checked"] = list(VARIABLE_CATALOGUES)
-            path.write_text(json.dumps(info, indent=1))
-        if "spoc_tces" not in info:                      # cache from before the TCE check
-            tces = retry("SPOC TCEs", lambda: spoc_tces(info["tic"]))
-            if tces is not None:
-                info["spoc_tces"] = tces
-                path.write_text(json.dumps(info, indent=1))
+    info = json.loads(path.read_text()) if path.exists() else None
+    if info is None:
+        row = retry(f"TIC lookup for {name}", lambda: resolve_tic(name))
+        if row is FAILED:
+            return {"failed": ["tic"]}               # not cached: the next run starts afresh
+        if row is None:
+            return None                              # not in the TIC
+        coord = SkyCoord(num(row["ra"]) * u.deg, num(row["dec"]) * u.deg)
+        info = {"tic": str(row["ID"]), "ra": coord.ra.deg, "dec": coord.dec.deg, "tmag": num(row["Tmag"]),
+                "gaia_id": gaia_id_of(row), "variables": [], "catalogues_checked": [],
+                "failed": ["exofop", "simbad", "neighbours", "gaia", "spoc_tces"]}
+    # caches from before a check existed, or with a section that failed last time
+    todo = set(info.get("failed", []))
+    todo |= {k for k in ("gaia", "spoc_tces") if k not in info}
+    missing = [c for c in VARIABLE_CATALOGUES if c not in info.get("catalogues_checked", [])]
+    if not todo and not missing:
         return info
-    row = retry(f"TIC lookup for {name}", lambda: resolve_tic(name))
-    if row is None:
-        return None
-    tic = str(row["ID"])
-    coord = SkyCoord(num(row["ra"]) * u.deg, num(row["dec"]) * u.deg)
-    info = {"tic": tic, "ra": coord.ra.deg, "dec": coord.dec.deg, "tmag": num(row["Tmag"]),
-            "exofop": retry("ExoFOP", lambda: exofop_summary(tic)) or {},
-            "simbad": retry("SIMBAD", lambda: simbad_summary(coord)) or {},
-            "variables": variables_near(coord), "catalogues_checked": list(VARIABLE_CATALOGUES),
-            "neighbours": retry("TIC neighbours", lambda: tic_neighbours(coord, tic)) or []}
-    info["gaia"] = retry("Gaia DR3", lambda: gaia_binarity(gaia_id_of(row), coord)) or {}
-    tces = retry("SPOC TCEs", lambda: spoc_tces(tic))
-    if tces is not None:                    # a failed query is retried next time
-        info["spoc_tces"] = tces
+    coord = SkyCoord(info["ra"] * u.deg, info["dec"] * u.deg)
+    tic, failed = info["tic"], []
+    fetchers = {"exofop": lambda: exofop_summary(tic), "simbad": lambda: simbad_summary(coord),
+                "neighbours": lambda: tic_neighbours(coord, tic),
+                "gaia": lambda: gaia_binarity(info.get("gaia_id") or gaia_id_of(resolve_tic(name)), coord),
+                "spoc_tces": lambda: spoc_tces(tic)}
+    for key in ("exofop", "simbad", "neighbours", "gaia", "spoc_tces"):
+        if key in todo:
+            res = retry({"exofop": "ExoFOP", "simbad": "SIMBAD", "neighbours": "TIC neighbours",
+                         "gaia": "Gaia DR3", "spoc_tces": "SPOC TCEs"}[key], fetchers[key])
+            if res is FAILED:
+                failed.append(key)
+            else:
+                info[key] = res if res is not None else ({} if key != "neighbours" else [])
+    if missing:
+        found, bad = variables_near(coord, missing)
+        info["variables"] = [x for x in info.get("variables", []) if x["cat"] not in missing] + found
+        info["catalogues_checked"] = [c for c in VARIABLE_CATALOGUES
+                                      if c in info.get("catalogues_checked", []) or (c in missing and c not in bad)]
+    info["failed"] = failed
     path.write_text(json.dumps(info, indent=1))
     return info
 
@@ -482,6 +508,8 @@ def main():
         cols["target_variable"].append("; ".join(
             f"{v['cat']} {v['type'] or 'variable'}" + (f" P={v['period']:.5f} d" if np.isfinite(v["period"]) else "")
             for v in own))
+        if incomplete(s):
+            flags.append("catalogue_check_incomplete")    # a query failed: rerun to complete
         if ex.get("tois"):
             flags.append("has_toi")
         if ex.get("ctois"):
@@ -519,6 +547,11 @@ def main():
         cols["enrich_flags"].append(";".join(flags))
     for k, v in cols.items():
         df[k] = v
+    bad = {n: incomplete(s) for n, s in stars.items() if incomplete(s)}
+    if bad:
+        logging.warning(f"{len(bad)} star(s) with catalogue checks incomplete (queries failed; rerun "
+                        f"enrich_candidates.py to complete them): "
+                        + "; ".join(f"{n} [{', '.join(f)}]" for n, f in bad.items()))
 
     out = Path(args.out) if args.out else src.parent / "enriched.csv"
     df.to_csv(out, index=False)

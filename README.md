@@ -802,6 +802,7 @@ Each detected signal gets one of three statuses:
 | `target_known_variable_period_match` | The target itself is a catalogued variable at this period |
 | `target_catalogued_variable` | A catalogued variable lies at the target's own position, with or without a period (Gaia's `SOLAR_LIKE` class is listed in `target_variable` but doesn't raise the flag) |
 | `has_toi` / `has_ctoi` | ExoFOP lists a TOI or community TOI |
+| `catalogue_check_incomplete` | A catalogue query (ExoFOP, SIMBAD, Gaia, MAST, a VizieR catalogue) still failed after 3 attempts with timeouts. The failure is never cached as "nothing found": rerun `enrich_candidates.py` and only the missing checks are fetched again. The step's log lists the stars and checks affected. Until then, a missing `has_toi` or variable match means nothing |
 | `has_spoc_tce` | SPOC's own pipeline found this period (or 2× or ½×) as a threshold-crossing event, from its data-validation reports on MAST (the widest-range and latest reports). Known to SPOC even if never promoted to a TOI (one b020 candidate was such an unpromoted TCE). Details in `spoc_tces` |
 | `simbad_<type>` | SIMBAD classifies the target as something notable, such as `SB*` |
 | `gaia_ruwe_high` | RUWE above 1.4: extra wobble on the sky, often an unresolved companion |
