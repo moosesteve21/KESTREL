@@ -580,9 +580,13 @@ For candidates whose fit is `consistent`, `fpp_check.py` runs TRICERATOPS
     are the means; `detail` gives the spread.
   - The fold is binned to 10 minutes, or to the longest cadence if longer (mixed 2-min
     and 30-min data are binned to 30 min), and the model is integrated over the bin.
-  - When `pixel_check.py` places the dip on the target, only stars within 21″ (one
-    pixel) are kept as possible sources. `--neb-radius` (with `--target`) does the same
-    after a manual check such as `investigations/depth_map.py`.
+  - Every nearby star is kept as a possible source. Only after a per-source pixel depth
+    map (`investigations/depth_map.py`) has ruled the others out, rerun with
+    `--target` and `--neb-radius`. Not automatic: `pixel_check.py`'s centroid is pulled
+    about in crowded fields (a b023 blend: centre 28″ ± 16″, true source 82″ away).
+  - A low NFPP doesn't clear a candidate: TRICERATOPS's aperture model can dismiss a star a
+    few pixels away whose light does reach the pixels. That blend got NFPP 0 with every star
+    allowed; only the depth map caught it.
   - Above 8 R⊕ it isn't run (`too_large`): its priors are for planets.
 - **Output:** FPP, NFPP and the main scenarios, with a label: `validation_level`
   (FPP < 0.015, NFPP < 0.001), `likely_planet` (FPP < 0.5, NFPP < 0.001),

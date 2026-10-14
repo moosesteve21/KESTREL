@@ -25,9 +25,13 @@ Label (thresholds of Giacalone et al. 2021):
                      planets up to ~8 Earth radii, so its FPP isn't meaningful
 FPP and NFPP are means over --runs repeats (TRICERATOPS is a Monte Carlo estimate);
 the detail column gives their spread, the binning and the search radius for nearby
-stars. When pixel_check.py's verdict is "consistent with the target", only stars
-within NEB_RADIUS (one TESS pixel) are kept as possible sources. Repeat runs, the
-pixel-based radius and the binning follow Eschen & Kunimoto (2024).
+stars. Every nearby star is kept as a possible source unless --neb-radius is given,
+which should follow a per-source pixel depth map (investigations/depth_map.py) that
+rules the others out. pixel_check.py's centroid is not enough: in a crowded field it
+is pulled about by several stars (a b023 blend: centre 28" +- 16" from the
+target, true source 82" away). Nor does a low NFPP clear a candidate: TRICERATOPS
+gave that blend NFPP 0 even with every star allowed. Repeat runs and the binning follow Eschen & Kunimoto (2024); restricting
+nearby sources after the pixel data localise the dip is their practice too.
 It records the result, it doesn't decide: no contrast curve is used, so the
 unresolved-companion scenarios stay open until high-resolution imaging exists.
 Writes <out>/fpp.csv.
@@ -48,17 +52,6 @@ VET_PY = HERE / ".venv-vet" / "bin" / "python"
 TRIES = 3
 RUNS = 10                       # repeats per candidate; FPP is reported as their mean
 MAX_RP_EARTH = 8.0              # TRICERATOPS's planet priors stop here
-NEB_RADIUS = 21.0               # arcsec: nearby-star sources kept when the pixels say on target
-
-
-def on_target(pixdir):
-    """{(target, candidate)} whose pixel_check verdict places the dip on the target."""
-    path = pixdir / "pixel_summary.csv"
-    if not path.exists():
-        return set()
-    df = pd.read_csv(path)
-    ok = df["verdict"].fillna("").str.contains("consistent with the target", regex=False)
-    return {(r.target, int(r.candidate)) for r in df[ok].itertuples()}
 
 
 def sectors_of(sources, author):
@@ -101,7 +94,7 @@ def check_one(fit, outdir, fitdir, draws, runs, neb_radius):
     pj.write_text(json.dumps(par))
     for attempt in range(1, TRIES + 1):
         logging.info(f"{name} #{k}: TRICERATOPS, {runs} x {draws} draws"
-                     + (f", sources within {neb_radius:g}\"" if neb_radius else "") + f" (attempt {attempt})")
+                     + (f", sources within {neb_radius:.0f}\"" if neb_radius else "") + f" (attempt {attempt})")
         res = subprocess.run([str(VET_PY), str(HERE / "vetting" / "fpp_triceratops.py"), str(pj.resolve())],
                              capture_output=True, text=True)
         lines = [l for l in res.stdout.splitlines() if l.startswith("{")]
@@ -112,7 +105,7 @@ def check_one(fit, outdir, fitdir, draws, runs, neb_radius):
             lab = label(r["fpp"], r["nfpp"])
             detail = (f"{r['runs']} runs: FPP {r['fpp']:.4f} +- {r['fpp_sd']:.4f}, NFPP {r['nfpp']:.4f} +- "
                       f"{r['nfpp_sd']:.4f}; {r['bin_min']:g}-min bins; nearby sources "
-                      + (f"within {r['neb_radius']:g}\"" if r.get("neb_radius") else "all"))
+                      + (f"within {r['neb_radius']:.0f}\"" if r.get("neb_radius") else "all"))
             logging.info(f"  -> {detail}: {lab}")
             return dict(base, label=lab, fpp=round(r["fpp"], 5), nfpp=round(r["nfpp"], 5),
                         prob_tp=round(r["prob_tp"], 4), draws=draws,
@@ -144,7 +137,6 @@ def main():
     outdir.mkdir(parents=True, exist_ok=True)
     if args.neb_radius and not args.target:
         sys.exit("--neb-radius applies to one --target (the pixel evidence is per star)")
-    located = on_target(src.parent / "pixel_check")
     if not (fitdir / "transit_fit.csv").exists():
         logging.info(f"no {fitdir / 'transit_fit.csv'}: nothing to check")
         return 0
@@ -160,8 +152,7 @@ def main():
     rows = []
     for _, f in sel.iterrows():
         try:
-            key = (f["target"], int(f["candidate"]))
-            radius = args.neb_radius or (NEB_RADIUS if key in located else None)
+            radius = args.neb_radius
             rows.append(check_one(f, outdir, fitdir, args.draws, args.runs, radius))
         except Exception as e:
             logging.exception(f"  {f['target']} #{f['candidate']} failed")
