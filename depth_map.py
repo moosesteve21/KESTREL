@@ -22,6 +22,9 @@ import astropy.units as u
 import numpy as np
 from astropy.coordinates import SkyCoord
 
+from mastutil import set_mast_timeout  # noqa: E402
+set_mast_timeout()   # TESScut and TIC queries give up after 90 s of silence, not 600 (b025: MAST slow)
+
 SIZE = 15                       # cutout, pixels
 NEIGHBOUR_DMAG = 5.5            # neighbours up to this much fainter than the target
 RADIUS_ARCMIN = 2.5

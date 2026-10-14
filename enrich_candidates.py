@@ -68,6 +68,16 @@ from astroquery.simbad import Simbad   # noqa: E402
 from mastutil import set_mast_timeout  # noqa: E402
 set_mast_timeout()                    # give up on a stuck MAST query after 90 s, not 600
 from astroquery.vizier import Vizier   # noqa: E402
+NET_TIMEOUT = (15, 90)                # seconds: connect, then silence on a read (as mastutil.py)
+
+
+def with_timeout(sess):
+    """Give a requests session a default timeout. SIMBAD (via its TAP service) and pyvo
+    send synchronous queries without one, so a stalled connection would wait forever
+    (astroquery's SIMBAD timeout only limits server-side async jobs)."""
+    send = sess.request
+    sess.request = lambda method, url, **kw: send(method, url, **{"timeout": NET_TIMEOUT, **kw})
+    return sess
 
 # ------------------------------------------------------------------ settings
 VAR_RADIUS_ARCMIN = 3.0         # known-variable search radius (~8.5 TESS pixels)
@@ -199,6 +209,7 @@ def tce_matches(P, tces):
 
 def simbad_summary(coord):
     s = Simbad()
+    with_timeout(s._session)
     s.add_votable_fields("otype", "sp_type")
     tab = s.query_region(coord, radius=SIMBAD_RADIUS_ARCSEC * u.arcsec)
     if tab is None or len(tab) == 0:
@@ -272,7 +283,8 @@ def gaia_query(adql):
     return an astropy Table. pyvo, not astroquery.gaia, which contacts the
     archive on import to print its news."""
     import pyvo
-    return pyvo.dal.TAPService(GAIA_TAP).run_sync(adql).to_table()
+    import requests
+    return pyvo.dal.TAPService(GAIA_TAP, session=with_timeout(requests.Session())).run_sync(adql).to_table()
 
 
 def gaia_id_of(row):

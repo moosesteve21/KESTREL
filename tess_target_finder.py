@@ -513,6 +513,8 @@ def main():
         release_batch(args.release)
         return
     if args.batch:
+        from mastutil import set_mast_timeout   # per-star MAST checks: give up after 90 s, not 600
+        set_mast_timeout()                      # (not for --build-catalog's large tile queries)
         if not args.name:
             ap.error("--batch needs --name")
         make_batch(args.batch, args.name)

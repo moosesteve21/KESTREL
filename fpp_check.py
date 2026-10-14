@@ -40,7 +40,9 @@ Writes <out>/fpp.csv.
 import argparse
 import json
 import logging
+import os
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -51,6 +53,8 @@ import pandas as pd
 HERE = Path(__file__).resolve().parent
 VET_PY = HERE / ".venv-vet" / "bin" / "python"
 TRIES = 3
+RUN_TIMEOUT = 3600              # s per TRICERATOPS attempt (10 runs normally take 3-5 min): a
+                                # stalled Gaia/MAST query inside it then counts as a failed attempt
 RUNS = 10                       # repeats per candidate; FPP is reported as their mean
 MAX_RP_EARTH = 8.0              # TRICERATOPS's planet priors stop here
 
@@ -96,8 +100,21 @@ def check_one(fit, outdir, fitdir, draws, runs, neb_radius):
     for attempt in range(1, TRIES + 1):
         logging.info(f"{name} #{k}: TRICERATOPS, {runs} x {draws} draws"
                      + (f", sources within {neb_radius:.0f}\"" if neb_radius else "") + f" (attempt {attempt})")
-        res = subprocess.run([str(VET_PY), str(HERE / "vetting" / "fpp_triceratops.py"), str(pj.resolve())],
-                             capture_output=True, text=True)
+        # its own process group, so a timeout stops TRICERATOPS's worker processes too
+        proc = subprocess.Popen([str(VET_PY), str(HERE / "vetting" / "fpp_triceratops.py"), str(pj.resolve())],
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                start_new_session=True)
+        try:
+            out, errout = proc.communicate(timeout=RUN_TIMEOUT)
+            res = subprocess.CompletedProcess(proc.args, proc.returncode, out, errout)
+        except subprocess.TimeoutExpired:
+            os.killpg(proc.pid, signal.SIGKILL)
+            proc.communicate()
+            err = f"no result after {RUN_TIMEOUT} s (a network query probably stalled)"
+            logging.warning(f"  attempt {attempt} failed: {err}")
+            if attempt < TRIES:
+                time.sleep(60)
+            continue
         lines = [l for l in res.stdout.splitlines() if l.startswith("{")]
         if res.returncode == 0 and lines:
             r = json.loads(lines[-1])
