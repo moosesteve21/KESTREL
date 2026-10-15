@@ -5,8 +5,10 @@ fpp_check.py.
 
 Usage: python vetting/fpp_triceratops.py PARAMS.json
   PARAMS.json: tic, P, T0 (BTJD), depth (fraction), events (npz from transit_fit.py),
-  spoc_sectors, tess_spoc_sectors, draws, workdir; optional runs (default 1) and
-  neb_radius (arcsec: only stars this close may host the signal)
+  spoc_sectors, tess_spoc_sectors, draws, workdir; optional runs (default 1),
+  neb_radius (arcsec: only stars this close may host the signal) and time_budget_s
+  (stop starting new runs once the next would pass this, after at least MIN_RUNS:
+  crowded fields get fewer runs rather than none)
 Prints one line of JSON: FPP, NFPP (means over the runs) and their spread, scenario
 probabilities of the last run, sectors used.
 
@@ -26,12 +28,17 @@ Practice from Eschen & Kunimoto (2024), applying TRICERATOPS (Giacalone et al. 2
 import json
 import os
 import sys
+import time
 import warnings
 
 warnings.filterwarnings("ignore")
 import lightkurve as lk
 import numpy as np
 from astropy.io import fits
+
+
+MIN_RUNS = 3          # with a time budget, at least this many runs before stopping early
+T_START = time.time()
 
 
 def main():
@@ -84,17 +91,21 @@ def main():
     dur = par.get("t14_h", 2.0) / 24
     err = float(np.std(fb[np.abs(tb) > 0.75 * dur])) if np.sum(np.abs(tb) > 0.75 * dur) > 5 else float(np.std(fb))
     fpps, nfpps = [], []
+    budget, t_runs = par.get("time_budget_s"), time.time()
     for _ in range(int(par.get("runs", 1))):
         target.calc_probs(time=tb, flux_0=fb, flux_err_0=err, P_orb=P, N=int(par.get("draws", 1_000_000)),
                           parallel=True, verbose=0, exptime=bw)
         fpps.append(float(target.FPP))
         nfpps.append(float(target.NFPP))
+        per_run = (time.time() - t_runs) / len(fpps)    # budget counts from the program's start
+        if budget and len(fpps) >= MIN_RUNS and time.time() - T_START + per_run > budget:
+            break                                    # a crowded field: report what we have
     probs = target.probs.sort_values("prob", ascending=False)
     nearby = target.stars[(target.stars["tdepth"] > 0) & (target.stars["tdepth"] <= 1) &
                           (target.stars["ID"].astype(str) != str(tic))]
     out = {"fpp": float(np.mean(fpps)), "nfpp": float(np.mean(nfpps)), "fpp_sd": float(np.std(fpps)),
            "nfpp_sd": float(np.std(nfpps)), "runs": len(fpps), "bin_min": round(bw * 1440, 1),
-           "neb_radius": radius, "sectors": sectors,
+           "neb_radius": radius, "sectors": sectors, "n_sources": int(len(target.stars)),
            "scenarios": {f"{r.ID}:{r.scenario}": round(float(r.prob), 5) for r in probs.head(6).itertuples()},
            "prob_tp": float(probs[(probs.ID.astype(str) == str(tic)) & (probs.scenario == "TP")].prob.sum()),
            "n_nearby_possible": int(len(nearby)), "binned_points": int(len(tb)), "flux_err": err}

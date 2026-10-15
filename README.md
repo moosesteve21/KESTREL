@@ -643,6 +643,11 @@ For candidates whose fit is `consistent`, `fpp_check.py` runs TRICERATOPS
     few pixels away whose light does reach the pixels. That blend got NFPP 0 with every star
     allowed; only the depth map caught it.
   - Above 8 R⊕ it isn't run (`too_large`): its priors are for planets.
+  - **Crowded fields:** each attempt has 1 hour, and the runs a budget of 50 minutes from its
+    start: after at least 3 runs it stops early and reports the mean of those (`detail` gives the
+    number of runs and of stars modelled). An attempt that times out is retried only if it was
+    waiting on the network; if it was computing (CPU busy), a retry would be as slow, so it's
+    recorded as an error instead (a b026 star: 3,184 Gaia stars, 43 min).
 - **Output:** FPP, NFPP and the main scenarios, with a label: `validation_level`
   (FPP < 0.015, NFPP < 0.001), `likely_planet` (FPP < 0.5, NFPP < 0.001),
   `likely_nearby_fp` (NFPP > 0.1) or `unclear`. Written to `fpp_check/fpp.csv`.

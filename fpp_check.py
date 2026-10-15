@@ -55,6 +55,34 @@ VET_PY = HERE / ".venv-vet" / "bin" / "python"
 TRIES = 3
 RUN_TIMEOUT = 3600              # s per TRICERATOPS attempt (10 runs normally take 3-5 min): a
                                 # stalled Gaia/MAST query inside it then counts as a failed attempt
+TIME_BUDGET = 3000              # s from the attempt's start: in a crowded field TRICERATOPS stops
+                                # after fewer runs (at least 3) instead of hitting RUN_TIMEOUT
+                                # (a b026 star: 3,184 Gaia stars, ~35 min setup, 43 min in all)
+BUSY_CPUS = 0.5                 # a timed-out attempt using at least this many CPUs at that moment
+                                # is computing, not stalled: retrying would only be slow again
+
+
+def group_cpu_seconds(pgid):
+    """CPU time used so far by every live process in a process group (TRICERATOPS
+    computes in worker processes), from Linux /proc."""
+    total = 0.0
+    for d in Path("/proc").iterdir():
+        if not d.name.isdigit():
+            continue
+        try:
+            f = (d / "stat").read_text().rsplit(")", 1)[1].split()
+            if int(f[2]) == pgid:                       # field 5: process group
+                total += (int(f[11]) + int(f[12])) / os.sysconf("SC_CLK_TCK")
+        except (OSError, ValueError, IndexError):
+            continue
+    return total
+
+
+def busy_cpus(pgid, window=5.0):
+    """How many CPUs the group is using right now (over a few seconds)."""
+    c0 = group_cpu_seconds(pgid)
+    time.sleep(window)
+    return (group_cpu_seconds(pgid) - c0) / window
 RUNS = 10                       # repeats per candidate; FPP is reported as their mean
 MAX_RP_EARTH = 8.0              # TRICERATOPS's planet priors stop here
 
@@ -89,7 +117,7 @@ def check_one(fit, outdir, fitdir, draws, runs, neb_radius):
         return dict(base, label="too_large", detail=f"Rp {fit['rp_earth']:.1f} R_earth > {MAX_RP_EARTH:g}")
     par = dict(tic=int(m.group(1)), P=fit["period"], T0=fit["t0"], depth=fit["depth_ppm"] * 1e-6,
                t14_h=fit["t14_h"], events=str((fitdir / fit["events_file"]).resolve()), draws=draws,
-               runs=runs, neb_radius=neb_radius,
+               runs=runs, neb_radius=neb_radius, time_budget_s=TIME_BUDGET,
                spoc_sectors=sectors_of(fit["sources"], "SPOC"),
                tess_spoc_sectors=sectors_of(fit["sources"], "TESS-SPOC"),
                workdir=str((outdir / "work").resolve()))
@@ -108,8 +136,14 @@ def check_one(fit, outdir, fitdir, draws, runs, neb_radius):
             out, errout = proc.communicate(timeout=RUN_TIMEOUT)
             res = subprocess.CompletedProcess(proc.args, proc.returncode, out, errout)
         except subprocess.TimeoutExpired:
+            busy = busy_cpus(proc.pid)                 # computing, or waiting on the network?
             os.killpg(proc.pid, signal.SIGKILL)
             proc.communicate()
+            if busy >= BUSY_CPUS:                      # computing: a retry would only be slow again
+                err = (f"no result after {RUN_TIMEOUT:.0f} s while computing ({busy:.1f} CPUs busy): "
+                       f"too slow for this field; not retried")
+                logging.warning(f"  attempt {attempt} failed: {err}")
+                return dict(base, label="error", detail=err)
             err = f"no result after {RUN_TIMEOUT} s (a network query probably stalled)"
             logging.warning(f"  attempt {attempt} failed: {err}")
             if attempt < TRIES:
@@ -121,7 +155,7 @@ def check_one(fit, outdir, fitdir, draws, runs, neb_radius):
             if "error" in r:
                 return dict(base, label="no_aperture", detail=r["error"])
             lab = label(r["fpp"], r["nfpp"])
-            detail = (f"{r['runs']} runs: FPP {r['fpp']:.4f} +- {r['fpp_sd']:.4f}, NFPP {r['nfpp']:.4f} +- "
+            detail = (f"{r['runs']} runs ({r.get('n_sources', '?')} stars): FPP {r['fpp']:.4f} +- {r['fpp_sd']:.4f}, NFPP {r['nfpp']:.4f} +- "
                       f"{r['nfpp_sd']:.4f}; {r['bin_min']:g}-min bins; nearby sources "
                       + (f"within {r['neb_radius']:.0f}\"" if r.get("neb_radius") else "all"))
             logging.info(f"  -> {detail}: {lab}")
