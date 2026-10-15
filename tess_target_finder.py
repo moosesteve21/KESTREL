@@ -460,6 +460,57 @@ def make_batch(n, name):
           f"{int(df['has_spoc_2min'].sum())} with SPOC 2-min) -> {txt_path}")
 
 
+def make_rerun(n, name):
+    """Write a re-run batch (for the paper's uniform run with frozen code): the next n
+    stars from the original whole-sky batches (catalogue batch b...), in their original
+    order (batch, then score), leaving out stars already in an earlier re-run batch (r...).
+    The catalogue's batch column is not changed; results go to results/<name>, so the
+    re-run's runs (r001, ...) sit beside the originals in tess.db."""
+    import subprocess
+    if not name.startswith("r"):
+        raise SystemExit("re-run batch names start with 'r' (r001, r002, ...), to keep them apart from b...")
+    con = db()
+    if con.execute("SELECT 1 FROM batches WHERE name = ?", (name,)).fetchone():
+        raise SystemExit(f"batch {name} already exists")
+    done = set()
+    for (f,) in con.execute("SELECT targets_file FROM batches WHERE name LIKE 'r%'"):
+        if f and (HERE / f).exists():
+            done |= {line.split("#")[0].strip() for line in (HERE / f).read_text().splitlines()
+                     if line.startswith("TIC ")}
+    cat = pd.read_sql("SELECT * FROM catalog WHERE batch LIKE 'b%'", con)
+    cat["target"] = "TIC " + cat["tic"].astype(str)
+    pool = cat[~cat["target"].isin(done)].sort_values(["batch", "score"], ascending=[True, False])
+    df = pool.head(n).copy()
+    if df.empty:
+        raise SystemExit("every star from the original batches is already in a re-run batch")
+    try:
+        version = subprocess.run(["git", "-C", str(HERE), "describe", "--tags", "--always", "--dirty"],
+                                 capture_output=True, text=True).stdout.strip()
+    except OSError:
+        version = "?"
+    txt_path = f"targets/{name}.txt"
+    df.to_csv(HERE / f"targets/{name}.csv", index=False)
+    batches = sorted(df["batch"].unique())
+    lines = [
+        f"# Re-run batch {name}: {len(df)} stars from the original batches {batches[0]}-{batches[-1]}, in their",
+        f"# original order, for the paper's uniform run. Written {pd.Timestamp.today():%Y-%m-%d} by",
+        f"# tess_target_finder.py --rerun with code version {version}.",
+        f"#   left         {len(pool) - len(df)} stars from the original batches not yet in a re-run batch",
+        f"# Prefetch:  .venv/bin/python prefetch.py {txt_path} results/{name}",
+        f"# Run with:  ./pipeline.sh {txt_path} results/{name} 8 \"re-run {name}\"",
+        "",
+    ]
+    for r in df.itertuples():
+        lines.append(f"{r.target:<15} # from {r.batch}  score={r.score:.1f}")
+    (HERE / txt_path).write_text("\n".join(lines) + "\n")
+    with con:
+        con.execute("INSERT INTO batches VALUES (?,?,?,?,?)",
+                    (name, pd.Timestamp.now().isoformat(timespec="seconds"), len(df),
+                     "\n".join(lines[:4]), txt_path))
+    print(f"Re-run batch {name}: {len(df)} stars from {batches[0]}-{batches[-1]} -> {txt_path} "
+          f"({len(pool) - len(df)} left)")
+
+
 def release_batch(name):
     """Return an unused batch's stars to the pool (e.g. after changing the selection
     criteria) and delete its target files. Refused once the batch has been run or
@@ -504,6 +555,8 @@ def main():
     ap.add_argument("--batch", type=int, metavar="N", help="write the next N unsearched stars from the catalogue")
     ap.add_argument("--name", help="batch name (for --batch)")
     ap.add_argument("--release", metavar="NAME", help="return an unused batch's stars to the pool")
+    ap.add_argument("--rerun", type=int, metavar="N", help="write a re-run batch: the next N stars from the "
+                    "original batches (b...), for the paper's uniform run; --name r001 etc.")
     ap.add_argument("--tile-limit", type=int, help=argparse.SUPPRESS)          # testing
     args = ap.parse_args()
     if args.build_catalog:
@@ -511,6 +564,11 @@ def main():
         return
     if args.release:
         release_batch(args.release)
+        return
+    if args.rerun:
+        if not args.name:
+            ap.error("--rerun needs --name")
+        make_rerun(args.rerun, args.name)
         return
     if args.batch:
         from mastutil import set_mast_timeout   # per-star MAST checks: give up after 90 s, not 600

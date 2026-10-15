@@ -198,6 +198,11 @@ Run batches at the prompt of the `tess` tmux session (created at boot; if it's m
 `tmux new -s tess './pipeline.sh …'` closes the session when the run ends, taking its
 final output with it.
 
+- **`--rerun N --name r001`** (for the paper's uniform run with frozen code): the next N stars
+  from the original whole-sky batches (b001 onwards), in their original order, skipping any
+  already in an earlier re-run batch. The catalogue's batch column isn't changed; results go
+  to `results/r001`, so the re-run's runs sit beside the originals in the database. Each
+  file records the code version (`git describe`): tag and commit before making them.
 - **`--build-catalog`** builds the catalogue in `db/tess.db`:
   - it queries the TIC in 15° sky boxes, 4 at a time, applying the stellar cuts below,
     and records finished boxes so an interrupted build resumes;
