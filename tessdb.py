@@ -174,7 +174,7 @@ SEARCH_COLS = ("period_d", "t0_btjd", "duration_h", "depth_ppm", "snr", "sde", "
 
 
 def connect():
-    con = sqlite3.connect(DB)
+    con = sqlite3.connect(DB, timeout=120)   # a search's rolling ingest and another batch's follow-up may overlap
     con.execute("PRAGMA foreign_keys = ON")
     con.executescript(SCHEMA.replace("{port}", str(PORT)))
     return con

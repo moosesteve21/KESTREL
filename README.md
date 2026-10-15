@@ -111,6 +111,16 @@ results into the database and backs it up, unattended:
 ./pipeline.sh targets/b0xx.txt results/b0xx 8 "batch b0xx"
 ```
 
+**Two stages.** `pipeline.sh` runs the search (CPU-bound). When it's complete, Discord
+gets "b0xx search done … next batch can start", and the rest (steps 3–7, ingest, backup;
+mostly waiting on MAST) moves to `followup.sh` in a `tess` tmux window named `fu-b0xx`,
+logging to the same `pipeline.log` and posting "b0xx complete" at the end. So the next
+batch's search can start as soon as the previous search is done. Follow-ups queue and run
+one at a time, in order, at low CPU priority (`nice`), so a search running alongside keeps
+its speed. `./followup.sh results/b0xx` redoes a batch's follow-up by hand;
+`FOLLOWUP=inline ./pipeline.sh …` runs everything in one go, as before. (In b025 the
+follow-up took about 2 h, waiting on a slow MAST: the next search no longer waits for it.)
+
 `watchlist.py` re-tests chosen candidates as new sectors are released.
 
 `pipeline.sh` logs each step to `results/<name>/pipeline.log` and stops at the first
@@ -861,6 +871,7 @@ behind them are in the `gaia_ruwe`, `gaia_rv_chisq_pvalue` and `gaia_c_star_sigm
 | `transit_fit.py` | Step 6: physical transit fit and density check (runs `vetting/transit_mcmc.py` in `.venv-vet`) |
 | `depth_map.py` | Per-source pixel depth map from TESScut cutouts (used by the two below) |
 | `depth_map_check.py` | Step 6b: depth map verdict for clean candidates |
+| `followup.sh` | Steps 3–7 plus ingest and backup for one batch, started by `pipeline.sh` in a `tess` window when the search is done; one at a time |
 | `fpp_check.py` | Step 7: TRICERATOPS false-positive probability (runs `vetting/fpp_triceratops.py` in `.venv-vet`) |
 | `vetting/` | Scripts that run in the vetting environment (`requirements-vet.txt`) |
 | `find_planets.py` | Step 2: transit search and vetting |

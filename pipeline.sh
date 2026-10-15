@@ -18,6 +18,11 @@
 #                            during the search: rolling updates, ROLLING_INGEST)
 #   6. tessdb.py backup      dated copy in db/backups/, and records/*.csv (notes,
 #                            watchlist, batches: the tables only the database holds)
+# Steps 2-6 are followup.sh. When the search is complete this script posts "search done"
+# and hands the batch to followup.sh in a tess tmux window (fu-<name>), so the next
+# batch's search can start while this one's network-bound follow-up runs; follow-ups
+# queue and go one at a time, at low CPU priority. FOLLOWUP=inline runs them here
+# instead (as before; used by the tests).
 # Rerunning the same command resumes: the search skips finished stars and the
 # later steps are cheap to repeat (ingest replaces the run's rows).
 #
@@ -66,11 +71,8 @@ finish() {
     local rc=$? name msg db="${TESSDB:-$here/db/tess.db}"
     name=$(basename "$root")
     case $rc in
-        0) msg="$name complete: $(sqlite3 "$db" "SELECT r.n_targets || ' stars, ' ||
-               (SELECT count(*) FROM candidates c WHERE c.run_id = r.run_id AND c.status != 'same_period') || ' signals, ' ||
-               (SELECT count(*) FROM candidates c WHERE c.run_id = r.run_id AND c.status = 'clean') || ' clean, ' ||
-               (SELECT count(*) FROM vsx_shortlist v WHERE v.run_id = r.run_id) || ' for VSX'
-               FROM runs r WHERE r.name = '$name'" 2>/dev/null)" ;;
+        0) [[ -n "${handed_over:-}" ]] || return 0      # inline follow-up posts its own message
+           msg="$name search done: $(grep -vc ',same_period,' "$root/candidates_all.csv" 2>/dev/null | awk '{print $1 - 1}') signals; follow-up $handed_over; next batch can start" ;;
         6) msg="$name stopped: $(wc -l < "$root/failed_targets.txt" 2>/dev/null || echo ?) star(s) left; rerun to continue" ;;
         3) msg="$name search incomplete: $(wc -l < "$root/failed_targets.txt" 2>/dev/null || echo ?) star(s) failed; rerun to retry" ;;
         *) msg="$name FAILED: $(grep ' !! ' "$logf" | tail -1 | sed 's/.* !! //' | cut -c1-200)" ;;
@@ -100,27 +102,24 @@ elif (( rc != 0 )); then
 fi
 [[ -f "$root/attention.txt" ]] && log "   note: $(wc -l < "$root/attention.txt") star(s) need attention (search stopped partway): $root/attention.txt"
 
-# 2-4. follow-up checks, only if there is something to check
-signals=$(( $(wc -l < "$root/candidates_all.csv") - 1 ))
-if (( signals > 0 )); then
-    step enrich "$py" enrich_candidates.py "$root/candidates_all.csv"
-    step pixel_check "$py" pixel_check.py "$root/enriched.csv"
-    step reduction_check "$py" reduction_check.py "$root/enriched.csv"
-    step vsx_shortlist "$py" vsx_shortlist.py --no-db "$root"
-    if [[ -x "$here/.venv-vet/bin/python" ]]; then
-        step transit_fit "$py" transit_fit.py "$root/enriched.csv"
-        step depth_map "$py" depth_map_check.py "$root/enriched.csv"
-        step fpp_check "$py" fpp_check.py "$root/enriched.csv"
-    else
-        log "   no vetting environment (.venv-vet): transit fit, depth map and FPP check skipped"
-    fi
-else
-    log "   no signals logged: catalogue, pixel and reduction checks skipped"
+# 2-6. follow-up: in its own tess window (default), or here (FOLLOWUP=inline)
+exec 8>&-                                     # release the folder lock: followup.sh takes it
+if [[ "${FOLLOWUP:-queue}" == inline ]]; then
+    trap - EXIT
+    "$here/followup.sh" "$root" "$note"
+    exit $?
 fi
-
-# 5-6. database
-step ingest "$py" tessdb.py ingest "$root" --note "$note"
-step backup "$py" tessdb.py backup
-log "pipeline complete: $root"
-"$py" tessdb.py list 2>/dev/null | grep -E "^run|^$(basename "$root") " | tee -a "$logf"
+fu=(env)                                      # carry the settings that matter (tmux starts a fresh shell)
+for v in TESSDB PLANETFINDER_DISCORD NOTIFY_DRYRUN FOLLOWUP_NICE; do
+    [[ -n "${!v:-}" ]] && fu+=("$v=${!v}")
+done
+fu+=("$here/followup.sh" "$root" "$note")
+if tmux has-session -t "=tess" 2>/dev/null && [[ "${FOLLOWUP_TMUX:-1}" == 1 ]]; then
+    tmux new-window -d -t "=tess:" -n "fu-$(basename "$root")" -c "$here" "$(printf '%q ' "${fu[@]}")"
+    handed_over="queued (tess window fu-$(basename "$root"))"
+else
+    setsid nohup "${fu[@]}" > /dev/null 2>&1 < /dev/null &
+    handed_over="queued (background process $!)"
+fi
+log "search complete: follow-up $handed_over; its steps are logged here"
 exit 0
