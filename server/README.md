@@ -63,3 +63,12 @@ incomplete, or a step failed.
 - **Send a message by hand:** `server/notify.sh "text"`. With no settings file, or if
   Discord is unreachable, it does nothing, so it never stops a pipeline.
 - **Test without sending:** `NOTIFY_DRYRUN=1` prints the message instead.
+
+## Discord channels (2026-10-15)
+
+`server/notify.sh --kind search|batch|prefetch "message"` posts to the webhook for that kind,
+from `~/.config/planetfinder/discord` (mode 600, never in git): DISCORD_SEARCH_NOTIFICATION_WEBHOOK
+("search done" and search-stage problems, from pipeline.sh), DISCORD_BATCH_NOTIFICATION_WEBHOOK
+("complete" / "follow-up FAILED", from followup.sh), DISCORD_PREFETCH_NOTIFICATION_WEBHOOK
+(prefetch summaries, from prefetch.py). A kind without its own webhook uses DISCORD_WEBHOOK.
+`NOTIFY_DRYRUN=1` prints the message and its kind instead of sending.

@@ -99,7 +99,7 @@ finish() {
         3) msg="$name search incomplete: $(wc -l < "$root/failed_targets.txt" 2>/dev/null || echo ?) star(s) failed; rerun to retry" ;;
         *) msg="$name FAILED: $(grep ' !! ' "$logf" | tail -1 | sed 's/.* !! //' | cut -c1-200)" ;;
     esac
-    "$here/server/notify.sh" "$msg (after $((SECONDS / 3600))h $((SECONDS % 3600 / 60))m)"
+    "$here/server/notify.sh" --kind search "$msg (after $((SECONDS / 3600))h $((SECONDS % 3600 / 60))m)"
 }
 trap finish EXIT
 

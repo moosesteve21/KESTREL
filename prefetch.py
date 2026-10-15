@@ -89,6 +89,9 @@ def fetch_one(name):
         return dict(rec, status=f"error: {type(e).__name__}: {e}"[:200], **timing())
 
 
+T0 = time.time()
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("targets")
@@ -130,6 +133,13 @@ def main():
                                                       final[t]["status"] in ("no_data", "no_usable_data")))
     logging.info(f"prefetch: {ready}/{len(targets)} targets ready"
                  + (f"; {len(targets) - ready} still to fetch (rerun to retry)" if ready < len(targets) else ""))
+    if todo:                                   # tell Discord (prefetch channel), if anything was fetched
+        import subprocess
+        mins = (time.time() - T0) / 60
+        msg = (f"{Path(args.out).name} prefetch: {ready}/{len(targets)} ready"
+               + (f", {len(targets) - ready} still to fetch (rerun to retry)" if ready < len(targets) else "")
+               + f" ({mins:.0f} min)")
+        subprocess.run([str(Path(__file__).resolve().parent / "server" / "notify.sh"), "--kind", "prefetch", msg])
     return 0 if ready == len(targets) else 3
 
 

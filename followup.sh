@@ -68,7 +68,7 @@ finish() {
     else
         msg="$name follow-up FAILED: $(grep ' !! ' "$logf" | tail -1 | sed 's/.* !! //' | cut -c1-200)"
     fi
-    "$here/server/notify.sh" "$msg (follow-up $((SECONDS / 3600))h $((SECONDS % 3600 / 60))m)"
+    "$here/server/notify.sh" --kind batch "$msg (follow-up $((SECONDS / 3600))h $((SECONDS % 3600 / 60))m)"
 }
 trap finish EXIT
 
