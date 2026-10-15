@@ -103,6 +103,9 @@ def main():
     import find_planets as fp
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
+    fh = logging.FileHandler(out / "prefetch.log")      # the batch's own log (appended), whatever
+    fh.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))   # stdout is sent to
+    logging.getLogger().addHandler(fh)
     lock = open(out / ".prefetch.lock", "w")       # held until exit; run_parallel.py waits on it
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)

@@ -42,13 +42,15 @@ the way (eclipsing binaries, spotted stars, wrong catalogue periods) are a secon
 - **Preparing the next batch is a manual step,** never done by the pipeline. The owner
   (or the assistant, when asked) selects it with `tess_target_finder.py` and prefetches
   it, usually while the current batch is still running, so it's ready to start.
-- When a batch ends, a Discord message reports the outcome (`server/notify.sh`).
+- When a batch ends, a Discord message reports the outcome (`server/notify.sh`). Discord is optional, the
+  owner's convenience: without `~/.config/planetfinder/discord`, `notify.sh` does nothing, and the outcome is
+  in the batch's `pipeline.log` and `server/batch_status.sh`.
 - Commits are made on the server; the owner pushes to GitHub (the server holds no
   GitHub credentials). GitHub is also the off-site backup.
 
 **After each batch.** The pipeline ends by loading the database, backing it up and
-posting the outcome to Discord. Then the owner and assistant:
-1. Check the Discord message and `server/batch_status.sh` (complete, stopped or failed).
+posting the outcome to Discord (if configured). Then the owner and assistant:
+1. Check the Discord message (if configured) and `server/batch_status.sh` (complete, stopped or failed).
 2. Review any clean candidates: an independent pipeline, per-sector depths, pixel
    position, density and FPP. Then decide: post, watchlist, or reject. Record the
    verdict as a note with `tessdb.py note`. For a candidate worth keeping (posted later,

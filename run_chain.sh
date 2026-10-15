@@ -8,7 +8,7 @@
 # For each batch in turn: ./pipeline.sh targets/<b>.txt results/<b> 8 "batch <b>" (the search;
 # its follow-up then runs in its own fu-<b> window, as usual). When a search finishes:
 #   - no clean signals: the next batch's search starts;
-#   - one or more clean signals: the chain stops and posts to Discord (search channel)
+#   - one or more clean signals: the chain stops and posts to Discord (search channel, if configured)
 #     that it's paused for review, with the command to resume.
 # It also stops on any problem (pipeline.sh not exiting 0: a search incomplete or stopped,
 # a failure, a typo guard), and before the next batch if results/STOP_CHAIN exists (the file

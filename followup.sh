@@ -15,7 +15,7 @@
 #     on the same folder can't overlap it.
 #   - Its steps run at low CPU priority (FOLLOWUP_NICE, default 10), so a search running
 #     alongside keeps its speed; the transit fit and TRICERATOPS are the CPU-heavy ones.
-# Posts the outcome to Discord (server/notify.sh), as pipeline.sh used to.
+# Posts the outcome to Discord (server/notify.sh), if configured, as pipeline.sh used to.
 set -uo pipefail
 
 if [[ $# -lt 1 ]]; then
