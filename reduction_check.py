@@ -50,6 +50,11 @@ NEAR = (0.75, 3.0)                            # baseline = this many durations e
 MIN_BASE_DAYS = 0.5                           # ...but at least this far out
 SUPPORT_SIGMA = 3.0
 HALF = 0.5                                    # fraction of the reference depth
+BKG_SIGMA, BKG_FRAC = 3.0, 0.3                # background_feature: the sky background rises in
+                                              # transit by this many sigma and this fraction of the
+                                              # depth (as a fraction of the star's flux): an
+                                              # over-subtracted background event, not a transit
+                                              # (a check PHT runs, Eisner et al. 2021)
 
 
 def flux_columns(lc, author):
@@ -101,6 +106,34 @@ def event_depths(lc, col, P, T0, D):
     return out
 
 
+def background_events(lc, P, T0, D):
+    """How much the SAP background (SPOC, TESS-SPOC) rises during each predicted transit,
+    as a fraction of the star's median SAP flux: (epoch, rise, error)."""
+    if "sap_bkg" not in lc.colnames or "sap_flux" not in lc.colnames:
+        return []
+    t = np.asarray(lc.time.value, float)
+    b = np.asarray(lc["sap_bkg"].value, float)
+    f = np.asarray(lc["sap_flux"].value, float)
+    ok = np.isfinite(t) & np.isfinite(b) & np.isfinite(f)
+    t, b, f = t[ok], b[ok], f[ok]
+    if len(t) < 50 or np.median(f) <= 0:
+        return []
+    scale = np.median(f)
+    out = []
+    lo, hi = NEAR[0] * D, max(NEAR[1] * D, MIN_BASE_DAYS)
+    for k in np.arange(np.ceil((t.min() - T0) / P), np.floor((t.max() - T0) / P) + 1):
+        dt = t - (T0 + k * P)
+        inn = np.abs(dt) < CORE * D
+        base = (np.abs(dt) > lo) & (np.abs(dt) < hi)
+        if inn.sum() < 3 or (base & (dt < 0)).sum() < 5 or (base & (dt > 0)).sum() < 5:
+            continue
+        c = np.polyfit(dt[base], b[base], 1)
+        r = (b - np.polyval(c, dt)) / scale
+        out.append((int(k), float(np.mean(r[inn])),
+                    float(np.std(r[base]) * np.sqrt(1 / inn.sum() + 1 / base.sum()))))
+    return out
+
+
 def stack(ev):
     """Inverse-variance mean of (depth, error) pairs."""
     d = np.array([x[0] for x in ev])
@@ -116,7 +149,7 @@ def check(r):
     logging.info(f"{name} #{k}: P = {P:.5f} d, dur = {D * 24:.2f} h; search used "
                  f"{', '.join(f'S{s} {a}' for s, a in sorted(prim.items())) or 'unknown'}")
     sr = retry(lambda: lk.search_lightcurve(name, author=AUTHORS), f"{name}: MAST search")
-    rows = []
+    rows, bkg = [], []
     for item in sr:
         author = str(item.table["author"][0])
         sector = int(item.table["sequence_number"][0])
@@ -130,6 +163,8 @@ def check(r):
         if author == "QLP" and "quality" in lc.colnames:   # QLP's own flag bits
             q = np.asarray(lc.quality.value if hasattr(lc.quality, "value") else lc.quality)
             lc = lc[q.astype(np.int64) == 0]
+        if author in ("SPOC", "TESS-SPOC"):
+            bkg += background_events(lc, P, T0, D)
         for label, col in flux_columns(lc, author):
             if col not in lc.colnames:
                 continue
@@ -179,9 +214,19 @@ def check(r):
         verdict = "inconclusive"
     else:
         verdict = "mixed"
+    bkg_d = bkg_e = None
+    if bkg:
+        bd, be = stack([(d, e) for _, d, e in bkg if e > 0])
+        bkg_d, bkg_e = round(bd * 1e6), round(be * 1e6)
+        feature = bd * 1e6 > BKG_SIGMA * be * 1e6 and bd * 1e6 > BKG_FRAC * ref_d
+        parts.append(f"background rise in transit {bkg_d}+-{bkg_e} ppm of the star's flux over {len(bkg)} events"
+                     + ("; background_feature" if feature else ""))
+        logging.info(f"  background in transit: {bkg_d:+d} +- {bkg_e} ppm of the star's flux"
+                     + (" -> background_feature" if feature else ""))
     logging.info(f"  -> {verdict} ({n_sup} supporting, {n_con} contradicting)")
     return rows, dict(target=name, candidate=k, verdict=verdict, n_support=n_sup,
-                      n_contradict=n_con, reference_ppm=round(ref_d), detail="; ".join(parts))
+                      n_contradict=n_con, reference_ppm=round(ref_d), bkg_rise_ppm=bkg_d,
+                      bkg_err_ppm=bkg_e, detail="; ".join(parts))
 
 
 def main():

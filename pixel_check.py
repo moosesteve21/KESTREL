@@ -428,8 +428,8 @@ def check(r, outdir):
     if len(good):
         wts = (good.depth_1px_ppm / good.err_1px_ppm) ** 2
         growth = np.sum(wts * good.depth_3x3_ppm / good.depth_1px_ppm) / wts.sum()
-        verdict.append(f"3x3/1px depth = {growth:.2f}"
-                       + (" (grows: off-target?)" if growth > GROWTH_LIMIT else ""))
+        verdict.append(f"3x3/1px depth = {growth:.2f}"      # aperture test (flag aperture_depth_grows)
+                       + (" (grows: off-target?)" if growth > GROWTH_LIMIT and len(good) >= 2 else ""))
     else:
         verdict.append("no sector detects the dip in the target's own pixel")
     # combined centroid, weighted by significance

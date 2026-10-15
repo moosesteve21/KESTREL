@@ -337,6 +337,12 @@ def ingest(folder, name=None, commit=None, note=None, targets=None, started=None
                         "INSERT INTO pixel_verdicts VALUES (?,?,?,?,?,?)",
                                 (run_id, r["target"], int(r["candidate"]), r["verdict"],
                                  r.get("source", ""), rel))
+                    if "(grows: off-target?)" in r["verdict"]:          # aperture test
+                        row = con.execute("SELECT cand_id FROM candidates WHERE run_id = ? AND star = ? "
+                                          "AND candidate = ?", (run_id, r["target"], int(r["candidate"]))).fetchone()
+                        if row:
+                            con.execute("INSERT INTO candidate_flags VALUES (?,?,?)",
+                                        (row[0], "aperture_depth_grows", "pixel_check"))
         # reduction checks: any reduction_check*/ folder in the run
         for rdir in sorted(folder.glob("reduction_check*")):
             if not (rdir / "reduction_summary.csv").exists():
@@ -347,6 +353,12 @@ def ingest(folder, name=None, commit=None, note=None, targets=None, started=None
                             (run_id, r["target"], int(r["candidate"]), r["verdict"],
                              num(r.get("n_support")), num(r.get("n_contradict")),
                              num(r.get("reference_ppm")), r.get("detail", ""), rdir.name))
+                if "background_feature" in (r.get("detail") or ""):
+                    row = con.execute("SELECT cand_id FROM candidates WHERE run_id = ? AND star = ? "
+                                      "AND candidate = ?", (run_id, r["target"], int(r["candidate"]))).fetchone()
+                    if row:
+                        con.execute("INSERT INTO candidate_flags VALUES (?,?,?)",
+                                    (row[0], "background_feature", "reduction_check"))
                 if r["verdict"] == "reduction_dependent":
                     row = con.execute("SELECT cand_id FROM candidates WHERE run_id = ? AND star = ? "
                                       "AND candidate = ?", (run_id, r["target"], int(r["candidate"]))).fetchone()
