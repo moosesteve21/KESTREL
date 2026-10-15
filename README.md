@@ -574,7 +574,15 @@ candidate's flags). A fitted T14 over 1.3× the longest transit the star allows
 (central, circular, `max_t14_h`) is `duration_too_long` instead, whatever the density
 (flag `fit_duration_too_long`): such fits can pass the density test through wide
 errors (a b023 blend: 7.7 h against 4.4 h, density 1.9σ; a b017 fit that wandered to
-9.9 h). Real candidates so far reach 1.16×. Only `consistent` fits go on to the FPP.
+9.9 h). Real candidates so far reach 1.16×. Only `consistent` fits go on to the FPP, plus `grazing_density_uncertain`: a density mismatch on a
+`v_shaped` signal, where the fit can't pin the impact parameter and radius (PHT likewise doesn't
+trust V-shaped candidates' radii, Eisner et al. 2021).
+- **Sampling:** emcee with differential-evolution moves (better for the strongly correlated b,
+  Rp/R* and density), walkers started across the whole impact-parameter range (grazing
+  included), run until converged: longer than 50 autocorrelation times and stable to 1%,
+  checked every 1,000 steps, up to 30,000 (`converged`; an unconverged fit says so in
+  `detail`). The old fixed 6,000 steps were 18–29 autocorrelation times by short-chain
+  estimates that turned out ~5× too low.
 Results go to `transit_fit/transit_fit.csv`: Rp, b, a/R*, T14, ρ* and z.
 
 - **Timing variations:** planets with transit-timing variations (e.g. near a

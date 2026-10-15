@@ -201,7 +201,7 @@ def main():
     if dmcsv.exists():
         dmv = pd.read_csv(dmcsv)
         off = {(r.target, int(r.candidate)): r.source for r in dmv[dmv.verdict == "off_target"].itertuples()}
-    sel = fits_df[fits_df.verdict == "consistent"]
+    sel = fits_df[fits_df.verdict.isin(["consistent", "grazing_density_uncertain"])]
     if args.target:
         sel = sel[sel.target == args.target]
         if args.candidate:

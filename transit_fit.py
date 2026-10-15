@@ -6,7 +6,8 @@ Usage:
     python transit_fit.py results/<name>/enriched.csv            # clean candidates
     python transit_fit.py results/<name>/enriched.csv --target "TIC 302453503" [--candidate 1]
     python transit_fit.py results/<name>/candidates_all.csv --all  # every candidate (calibration)
-    options: --out DIR (default: transit_fit beside the input), --steps N (default 6000),
+    options: --out DIR (default: transit_fit beside the input), --steps N (most MCMC steps, default 30000;
+             the chain stops earlier once converged: > 50 autocorrelation times, stable to 1%),
              --jobs N (fits run in parallel, default 2); MAST queries are retried
 
 A transit's shape and duration fix a/R*, and with the period the star's density:
@@ -24,6 +25,11 @@ come from the star's Teff (approximate TESS-band values).
 Verdict, from log10 density (fit posterior combined with the TIC uncertainty):
   consistent        the TIC density is within DENSITY_SIGMA
   density_mismatch  it is further off (flag: density_mismatch)
+  grazing_density_uncertain
+                    a density_mismatch on a v_shaped signal: the fit can't pin b and Rp/R*
+                    for a grazing transit (TOI-7689.01 converges on b ~ 0.57 with ~14x the
+                    star's density), so the density test isn't trusted, as PHT treats
+                    V-shaped candidates (Eisner et al. 2021). Goes on to the FPP
   duration_too_long the fitted T14 is over DUR_MARGIN x the longest transit the TIC star
                     allows (central, circular, with the fitted Rp/R*). Takes precedence:
                     such a fit can still pass the density test through wide errors (a
@@ -205,7 +211,7 @@ def fit_one(r, outdir, steps):
              e=np.concatenate([x[2] for x in ev]), cad=np.concatenate([x[3] for x in ev]))
     rho_tic = star["mass"] / star["rad"] ** 3 * RHO_SUN
     u1, u2 = ld_prior(star["teff"])
-    par = dict(P=P, T0=T0, D=D, depth=float(r["depth_ppm"]) * 1e-6, u1=u1, u2=u2, steps=steps, rho_star=rho_tic)
+    par = dict(P=P, T0=T0, D=D, depth=float(r["depth_ppm"]) * 1e-6, u1=u1, u2=u2, max_steps=steps, rho_star=rho_tic)
     pj = outdir / f"{safe}_c{k}_params.json"
     pj.write_text(json.dumps(par))
     logging.info(f"{name} #{k}: fitting {len(ev)} transits ({sources})")
@@ -229,13 +235,20 @@ def fit_one(r, outdir, steps):
         note = (f"sector timing scatters (offsets up to {ttv['ttv_max_min']:.0f} min, p = {ttv['ttv_p']:.0e}): "
                 "if real, timing variations smear the dip and lower the fitted density; for weak "
                 "signals the offsets may be noise")
+    if verdict == "density_mismatch" and "v_shaped" in str(r.get("flags", "")):
+        verdict = "grazing_density_uncertain"
+        note = "; ".join(x for x in (f"V-shaped (grazing?): density {z:+.1f} sigma not trusted", note) if x)
     max_t14 = fp.max_duration(f["period"][0], star, f["rp_rs"][0]) * 24
     if f["t14_h"][0] > DUR_MARGIN * max_t14:
         note = "; ".join(x for x in (f"fitted T14 {f['t14_h'][0]:.1f} h vs at most {max_t14:.1f} h for the star "
                                      f"(density {verdict.replace('_', ' ')}, {z:+.1f} sigma)", note) if x)
         verdict = "duration_too_long"
+    if f.get("converged") is False:
+        note = "; ".join(x for x in (note, f"MCMC not converged after {f['steps']} steps "
+                                           f"(autocorrelation time {f['autocorr_steps']:.0f})") if x)
     out = dict(base, verdict=verdict, density_z=round(float(z), 2), rho_tic=round(rho_tic, 3),
                n_events=len(ev), steps=f["steps"], autocorr_steps=round(f["autocorr_steps"], 0),
+               converged=f.get("converged"),
                sources=sources, events_file=npz.name, ttv_p=ttv.get("ttv_p"),
                ttv_max_min=ttv.get("ttv_max_min"), max_t14_h=round(max_t14, 2), detail=note)
     for key in ("period", "t0", "rp_rs", "b", "rho", "a_rs", "t14_h", "depth_ppm"):
@@ -254,7 +267,7 @@ def main():
     ap.add_argument("--target")
     ap.add_argument("--candidate", type=int)
     ap.add_argument("--out")
-    ap.add_argument("--steps", type=int, default=6000)
+    ap.add_argument("--steps", type=int, default=30000)
     ap.add_argument("--jobs", type=int, default=2)
     ap.add_argument("--all", action="store_true", help="every candidate except same_period, not just clean")
     args = ap.parse_args()

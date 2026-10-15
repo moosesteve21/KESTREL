@@ -53,7 +53,8 @@ def ephemeris(r, fits):
         if len(f) and f.iloc[0]["verdict"] == "consistent" and pd.notna(f.iloc[0].get("period")):
             f = f.iloc[0]
             return float(f["period"]), float(f["t0"]), float(f["t14_h"]) / 24, "transit fit"
-        if len(f) and f.iloc[0]["verdict"] == "density_mismatch" and pd.notna(f.iloc[0].get("period")):
+        if len(f) and f.iloc[0]["verdict"] in ("density_mismatch", "grazing_density_uncertain") \
+                and pd.notna(f.iloc[0].get("period")):
             f = f.iloc[0]
             return float(f["period"]), float(f["t0"]), t14, "transit fit (search duration)"
     return float(r["period_d"]), float(r["t0_btjd"]), t14, "search"
