@@ -121,6 +121,13 @@ its speed. `./followup.sh results/b0xx` redoes a batch's follow-up by hand;
 `FOLLOWUP=inline ./pipeline.sh …` runs everything in one go, as before. (In b025 the
 follow-up took about 2 h, waiting on a slow MAST: the next search no longer waits for it.)
 
+**Typo guards.** `pipeline.sh` refuses to start, without creating anything, if the targets
+file's name doesn't match the results folder (`targets/b029.txt` must go with `results/b029`),
+if the folder already holds a run of different stars, if the batch is already complete, or if
+its search is done and its follow-up is still queued or running. An interrupted batch with
+the same targets still resumes. `FORCE=1` reruns a complete batch; `ANY_NAMES=1` allows
+differing names (scratch tests).
+
 **Debug logging.** `PLANETFINDER_LOG=debug` in front of `./pipeline.sh` (or any follow-up
 script) adds the process detail to `pipeline.log`: each network query with its time and
 retries, each sector's download, the depth map's per-sector results, the MCMC's progress at

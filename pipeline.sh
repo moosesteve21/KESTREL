@@ -42,6 +42,28 @@ py="$here/.venv/bin/python"
 [[ -x "$py" ]] || py=python
 cd "$here"
 
+# Guard against typos (e.g. targets/b029.txt with results/b028), and against running over a
+# batch that's finished or whose follow-up is still pending. FORCE=1 skips the last two;
+# ANY_NAMES=1 allows names that differ (scratch tests).
+fail() { echo "pipeline.sh: $*" >&2; exit 2; }
+tname=$(basename "$targets"); tname=${tname%.*}
+[[ -f "$targets" ]] || fail "no targets file $targets"
+if [[ "$tname" != "$(basename "$root")" && -z "${ANY_NAMES:-}" ]]; then
+    fail "targets $targets don't match results folder $root (expected results/$tname); ANY_NAMES=1 to allow"
+fi
+if [[ -f "$root/all_targets.txt" ]]; then
+    want=$(sed 's/#.*//' "$targets" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -v '^$' | sort -u)
+    have=$(sort -u "$root/all_targets.txt")
+    [[ "$want" == "$have" ]] || fail "$root already holds a run of different stars ($(wc -l < "$root/all_targets.txt") targets): not overwritten"
+fi
+if [[ -f "$root/pipeline.log" && -z "${FORCE:-}" ]]; then
+    last=$(grep -E 'pipeline complete:|search complete: follow-up queued' "$root/pipeline.log" | tail -1)
+    case $last in
+        *"pipeline complete:"*) fail "$root is already complete ($last); FORCE=1 to run it again" ;;
+        *"search complete: follow-up queued"*) fail "$root: search done and its follow-up is queued or running (tmux window fu-$(basename "$root")); FORCE=1 to run it again" ;;
+    esac
+fi
+
 mkdir -p "$root"
 exec 8> "$root/.pipeline.lock"
 if ! flock -n 8; then
