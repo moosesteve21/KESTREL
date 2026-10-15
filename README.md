@@ -121,6 +121,13 @@ its speed. `./followup.sh results/b0xx` redoes a batch's follow-up by hand;
 `FOLLOWUP=inline ./pipeline.sh …` runs everything in one go, as before. (In b025 the
 follow-up took about 2 h, waiting on a slow MAST: the next search no longer waits for it.)
 
+**Chains.** `./run_chain.sh b037 b038 …` (in the `tess` session) runs several batches'
+searches back to back: when a search ends with no clean signal, the next starts (follow-ups
+run in their `fu-` windows as usual); when one ends with a clean signal, the chain pauses and
+posts "chain paused for review; resume with ./run_chain.sh …". It stops on any problem, and
+before the next batch if `results/STOP_CHAIN` exists. (The owner's rule since 2026-10-15:
+batches run unattended only while no clean signal appears.)
+
 **Typo guards.** `pipeline.sh` refuses to start, without creating anything, if the targets
 file's name doesn't match the results folder (`targets/b029.txt` must go with `results/b029`),
 if the folder already holds a run of different stars, if the batch is already complete, or if
