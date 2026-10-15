@@ -53,6 +53,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+import logsetup
+
 warnings.filterwarnings("ignore")
 from mastutil import set_mast_timeout  # noqa: E402
 set_mast_timeout()                    # give up on a stuck MAST query after 90 s, not 600
@@ -185,6 +187,27 @@ def sector_timing(ev, P, T0, D, depth):
     return ev, info
 
 
+def run_relaying(cmd, label):
+    """Run the fit, passing its progress lines (stderr, "MCMC: ...") to the debug log as
+    they come, so a long fit shows how close it is to converging."""
+    import threading
+    from types import SimpleNamespace
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    err = []
+
+    def pump():
+        for line in proc.stderr:
+            err.append(line)
+            if line.startswith("MCMC:"):
+                logging.debug(f"  {label}: {line.strip()}")
+    t = threading.Thread(target=pump, daemon=True)
+    t.start()
+    out = proc.stdout.read()
+    proc.wait()
+    t.join()
+    return SimpleNamespace(returncode=proc.returncode, stdout=out, stderr="".join(err))
+
+
 def fit_one(r, outdir, steps):
     import find_planets as fp
     import lightkurve as lk
@@ -215,8 +238,8 @@ def fit_one(r, outdir, steps):
     pj = outdir / f"{safe}_c{k}_params.json"
     pj.write_text(json.dumps(par))
     logging.info(f"{name} #{k}: fitting {len(ev)} transits ({sources})")
-    res = subprocess.run([str(VET_PY), str(HERE / "vetting" / "transit_mcmc.py"), str(npz), str(pj)],
-                         capture_output=True, text=True)
+    res = run_relaying([str(VET_PY), str(HERE / "vetting" / "transit_mcmc.py"), str(npz), str(pj)],
+                       f"{name} #{k}")
     lines = [l for l in res.stdout.splitlines() if l.startswith("{")]
     if res.returncode != 0 or not lines:
         return dict(base, verdict="fit_failed", detail=(res.stderr.strip().splitlines() or ["?"])[-1][:200])
@@ -241,7 +264,7 @@ def fit_one(r, outdir, steps):
     max_t14 = fp.max_duration(f["period"][0], star, f["rp_rs"][0]) * 24
     if f["t14_h"][0] > DUR_MARGIN * max_t14:
         note = "; ".join(x for x in (f"fitted T14 {f['t14_h'][0]:.1f} h vs at most {max_t14:.1f} h for the star "
-                                     f"(density {verdict.replace('_', ' ')}, {z:+.1f} sigma)", note) if x)
+                                     f"(density {'consistent' if verdict == 'consistent' else 'mismatch'}, {z:+.1f} sigma)", note) if x)
         verdict = "duration_too_long"
     if f.get("converged") is False:
         note = "; ".join(x for x in (note, f"MCMC not converged after {f['steps']} steps "
@@ -271,7 +294,7 @@ def main():
     ap.add_argument("--jobs", type=int, default=2)
     ap.add_argument("--all", action="store_true", help="every candidate except same_period, not just clean")
     args = ap.parse_args()
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    logsetup.setup()
     logging.getLogger("lightkurve").setLevel(logging.WARNING)
     src = Path(args.candidates)
     outdir = Path(args.out) if args.out else src.parent / "transit_fit"

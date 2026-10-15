@@ -29,6 +29,7 @@ enough transits, no nearby_variable_period_match). Writes
 """
 import argparse
 import logging
+import logsetup
 import re
 import warnings
 from pathlib import Path
@@ -148,7 +149,8 @@ def check(r):
     prim = primary_products(r.get("sources", ""))
     logging.info(f"{name} #{k}: P = {P:.5f} d, dur = {D * 24:.2f} h; search used "
                  f"{', '.join(f'S{s} {a}' for s, a in sorted(prim.items())) or 'unknown'}")
-    sr = retry(lambda: lk.search_lightcurve(name, author=AUTHORS), f"{name}: MAST search")
+    with logsetup.timed(f"{name}: MAST search"):
+        sr = retry(lambda: lk.search_lightcurve(name, author=AUTHORS), f"{name}: MAST search")
     rows, bkg = [], []
     for item in sr:
         author = str(item.table["author"][0])
@@ -156,7 +158,8 @@ def check(r):
         if float(item.table["exptime"][0]) < MIN_EXPTIME:
             continue
         try:
-            lc = item.download(quality_bitmask="default")
+            with logsetup.timed(f"{name} {author} S{sector}: download"):
+                lc = item.download(quality_bitmask="default")
         except Exception as e:
             logging.warning(f"  {author} S{sector}: download failed ({type(e).__name__})")
             continue
@@ -237,7 +240,7 @@ def main():
     ap.add_argument("--candidate", type=int, help="with --target: this candidate only")
     ap.add_argument("--out", help="output folder (default: reduction_check beside the input)")
     args = ap.parse_args()
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    logsetup.setup()
     logging.getLogger("lightkurve").setLevel(logging.WARNING)
     src = Path(args.candidates)
     outdir = Path(args.out) if args.out else src.parent / "reduction_check"

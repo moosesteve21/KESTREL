@@ -93,6 +93,8 @@ def main():
         state = sampler.run_mcmc(state, CHUNK, progress=False)
         tau_all = sampler.get_autocorr_time(tol=0)
         tau = float(np.max(tau_all))
+        print(f"MCMC: {sampler.iteration} steps, autocorrelation {tau:.0f} (converged at > {50 * tau:.0f} "
+              f"and stable), acceptance {np.mean(sampler.acceptance_fraction):.2f}", file=sys.stderr, flush=True)
         if np.isfinite(tau) and sampler.iteration > 50 * tau and abs(tau_old - tau) / tau < 0.01:
             converged = True
             break

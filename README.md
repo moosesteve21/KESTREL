@@ -121,6 +121,11 @@ its speed. `./followup.sh results/b0xx` redoes a batch's follow-up by hand;
 `FOLLOWUP=inline ./pipeline.sh …` runs everything in one go, as before. (In b025 the
 follow-up took about 2 h, waiting on a slow MAST: the next search no longer waits for it.)
 
+**Debug logging.** `PLANETFINDER_LOG=debug` in front of `./pipeline.sh` (or any follow-up
+script) adds the process detail to `pipeline.log`: each network query with its time and
+retries, each sector's download, the depth map's per-sector results, the MCMC's progress at
+every 1,000 steps (live), and TRICERATOPS's phases and runs. The default output is unchanged.
+
 `watchlist.py` re-tests chosen candidates as new sectors are released.
 
 `pipeline.sh` logs each step to `results/<name>/pipeline.log` and stops at the first

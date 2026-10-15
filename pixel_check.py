@@ -33,6 +33,7 @@ and sector.
 """
 import argparse
 import logging
+import logsetup
 import re
 import time
 import warnings
@@ -390,12 +391,15 @@ def check(r, outdir):
     name, k = r["target"], int(r["candidate"])
     P, T0, D, half = ephemeris(r)
     logging.info(f"{name} #{k}: P = {P:.6f} d, T0 = {T0:.4f}, dur = {D * 24:.2f} h")
-    sr = retry(lambda: lk.search_tesscut(name), f"{name}: TESScut search")
+    with logsetup.timed(f"{name}: TESScut search"):
+        sr = retry(lambda: lk.search_tesscut(name), f"{name}: TESScut search")
+    logging.debug(f"  {name}: {len(sr)} TESScut sector(s)")
     safe = re.sub(r"[^\w.-]+", "_", name)
     rows, tgt, field = [], None, None
     for row in sr:
         sector = int(row.table["sequence_number"][0])
-        tpf = download(row)
+        with logsetup.timed(f"{name} S{sector}: cutout download"):
+            tpf = download(row)
         if tpf is None:
             logging.warning(f"  sector {sector}: download failed, skipped")
             continue
@@ -472,7 +476,7 @@ def main():
     ap.add_argument("--candidate", type=int, help="with --target: this candidate number only")
     ap.add_argument("--out", help="output folder (default: pixel_check beside the input)")
     args = ap.parse_args()
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    logsetup.setup()
     logging.getLogger("lightkurve").setLevel(logging.WARNING)   # quality-mask chatter
     src = Path(args.candidates)
     outdir = Path(args.out) if args.out else src.parent / "pixel_check"

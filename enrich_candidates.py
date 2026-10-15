@@ -47,6 +47,8 @@ By default same_period rows are skipped (they repeat a logged signal); --all kee
 """
 import argparse
 import json
+
+import logsetup
 import tempfile
 import xml.etree.ElementTree as ET
 import logging
@@ -123,9 +125,13 @@ def retry(what, fn):
     cached as an empty answer: the section is listed in the star's "failed" list,
     retried on the next run, and its signals get catalogue_check_incomplete."""
     for attempt in range(1, QUERY_TRIES + 1):
+        t0 = time.time()
         try:
-            return fn()
+            res = fn()
+            logging.debug(f"  [{time.time() - t0:6.1f} s] {what}" + (f" (attempt {attempt})" if attempt > 1 else ""))
+            return res
         except Exception as e:
+            logging.debug(f"  [{time.time() - t0:6.1f} s] {what}: attempt {attempt} failed ({type(e).__name__}: {e})")
             if attempt == QUERY_TRIES:
                 logging.warning(f"  {what} failed ({type(e).__name__}: {e}); will retry next run")
                 return FAILED
@@ -369,7 +375,9 @@ def fetch_star(name, cache_dir):
     todo |= {k for k in ("gaia", "spoc_tces") if k not in info}
     missing = [c for c in VARIABLE_CATALOGUES if c not in info.get("catalogues_checked", [])]
     if not todo and not missing:
+        logging.debug(f"  {name}: all catalogue checks cached")
         return info
+    logging.debug(f"  {name}: fetching {sorted(todo) + missing}")
     coord = SkyCoord(info["ra"] * u.deg, info["dec"] * u.deg)
     tic, failed = info["tic"], []
     fetchers = {"exofop": lambda: exofop_summary(tic), "simbad": lambda: simbad_summary(coord),
@@ -474,7 +482,7 @@ def main():
     ap.add_argument("--out", help="output CSV (default: enriched.csv beside the input)")
     ap.add_argument("--all", action="store_true", help="also enrich same_period rows")
     args = ap.parse_args()
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    logsetup.setup()
 
     src = Path(args.candidates)
     df = pd.read_csv(src)

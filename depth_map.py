@@ -22,6 +22,7 @@ import astropy.units as u
 import numpy as np
 from astropy.coordinates import SkyCoord
 
+import logsetup  # noqa: E402
 from mastutil import set_mast_timeout  # noqa: E402
 set_mast_timeout()   # TESScut and TIC queries give up after 90 s of silence, not 600 (b025: MAST slow)
 
@@ -52,7 +53,8 @@ def depth_map(tic, P, T0, T14, skip=(), say=print):
              for _, r in nb.iterrows()]
     say(f"TIC {tic}: T = {float(tgt['Tmag']):.2f}; {len(stars) - 1} neighbours within {RADIUS_ARCMIN}' "
         f"brighter than T = {float(tgt['Tmag']) + NEIGHBOUR_DMAG:.1f}")
-    sr = lk.search_tesscut(f"TIC {tic}")
+    with logsetup.timed(f"TIC {tic}: TESScut search"):
+        sr = lk.search_tesscut(f"TIC {tic}")
     maps, sectors = [], []
     chi = {s[0]: 0.0 for s in stars}
     chi_null = 0.0
@@ -63,7 +65,8 @@ def depth_map(tic, P, T0, T14, skip=(), say=print):
             say(f"S{sector}: left out (skip)")
             continue
         try:
-            tpf = row.download(cutout_size=SIZE, quality_bitmask="hard")
+            with logsetup.timed(f"TIC {tic} S{sector}: cutout download"):
+                tpf = row.download(cutout_size=SIZE, quality_bitmask="hard")
         except Exception as e:
             say(f"S{sector}: download failed ({type(e).__name__})")
             continue

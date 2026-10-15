@@ -110,7 +110,7 @@ if [[ "${FOLLOWUP:-queue}" == inline ]]; then
     exit $?
 fi
 fu=(env)                                      # carry the settings that matter (tmux starts a fresh shell)
-for v in TESSDB PLANETFINDER_DISCORD NOTIFY_DRYRUN FOLLOWUP_NICE; do
+for v in TESSDB PLANETFINDER_DISCORD NOTIFY_DRYRUN FOLLOWUP_NICE PLANETFINDER_LOG; do
     [[ -n "${!v:-}" ]] && fu+=("$v=${!v}")
 done
 fu+=("$here/followup.sh" "$root" "$note")

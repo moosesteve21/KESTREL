@@ -50,6 +50,8 @@ from pathlib import Path
 
 import pandas as pd
 
+import logsetup
+
 HERE = Path(__file__).resolve().parent
 VET_PY = HERE / ".venv-vet" / "bin" / "python"
 TRIES = 3
@@ -135,6 +137,9 @@ def check_one(fit, outdir, fitdir, draws, runs, neb_radius):
         try:
             out, errout = proc.communicate(timeout=RUN_TIMEOUT)
             res = subprocess.CompletedProcess(proc.args, proc.returncode, out, errout)
+            for line in errout.splitlines():
+                if line.startswith("TRICERATOPS:"):
+                    logging.debug(f"  {name} #{k}: {line}")
         except subprocess.TimeoutExpired:
             busy = busy_cpus(proc.pid)                 # computing, or waiting on the network?
             os.killpg(proc.pid, signal.SIGKILL)
@@ -182,7 +187,7 @@ def main():
     ap.add_argument("--fits")
     ap.add_argument("--out")
     args = ap.parse_args()
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    logsetup.setup()
     src = Path(args.candidates)
     fitdir = Path(args.fits) if args.fits else src.parent / "transit_fit"
     outdir = Path(args.out) if args.out else src.parent / "fpp_check"

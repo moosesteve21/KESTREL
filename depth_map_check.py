@@ -37,6 +37,7 @@ from pathlib import Path
 import pandas as pd
 
 import depth_map as dm
+import logsetup
 
 TARGET_DCHI2 = 9.0          # target within this of the best source: on target
 OFF_DCHI2 = 25.0            # another star better by more than this (and wins half the sectors): off target
@@ -119,7 +120,8 @@ def check_one(r, fits, outdir):
         lines = []
         try:
             logging.info(f"{name} #{k}: P {P:.6f}, T0 {T0:.5f}, T14 {T14 * 24:.2f} h ({src})")
-            res = dm.depth_map(int(m[1]), P, T0, T14, say=lines.append)
+            res = dm.depth_map(int(m[1]), P, T0, T14,
+                               say=lambda x: (lines.append(x), logging.debug("  " + x)))
             break
         except Exception as e:
             logging.warning(f"  attempt {attempt} failed: {type(e).__name__}: {e}")
@@ -145,7 +147,7 @@ def main():
     ap.add_argument("--out")
     ap.add_argument("--fits")
     args = ap.parse_args()
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    logsetup.setup()
     src = Path(args.candidates)
     outdir = Path(args.out) if args.out else src.parent / "depth_map"
     fitcsv = (Path(args.fits) if args.fits else src.parent / "transit_fit") / "transit_fit.csv"

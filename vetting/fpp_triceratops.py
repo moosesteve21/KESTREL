@@ -73,12 +73,15 @@ def main():
     if not sectors:
         print(json.dumps({"error": "no sector with a published aperture (SPOC or TESS-SPOC)"}))
         return
+    print(f"TRICERATOPS: apertures for sectors {sectors} ({time.time() - T_START:.0f} s)", file=sys.stderr, flush=True)
     target = tr.target(ID=tic, sectors=np.array(sectors))
     target.calc_depths(tdepth=depth, all_ap_pixels=apertures)
     radius = par.get("neb_radius")
     if radius:
         far = (target.stars["sep (arcsec)"] > radius) & (target.stars["ID"].astype(str) != str(tic))
         target.stars.loc[far, "tdepth"] = 0.0
+    print(f"TRICERATOPS: {len(target.stars)} stars modelled, depths computed ({time.time() - T_START:.0f} s)",
+          file=sys.stderr, flush=True)
     d = np.load(par["events"])
     bw = max(10 / 1440, float(np.max(d["cad"]))) if "cad" in d.files else 10 / 1440
     ph = (d["t"] - T0 + 0.5 * P) % P - 0.5 * P
@@ -97,6 +100,8 @@ def main():
                           parallel=True, verbose=0, exptime=bw)
         fpps.append(float(target.FPP))
         nfpps.append(float(target.NFPP))
+        print(f"TRICERATOPS: run {len(fpps)}: FPP {fpps[-1]:.4f}, NFPP {nfpps[-1]:.4f} ({time.time() - T_START:.0f} s)",
+              file=sys.stderr, flush=True)
         per_run = (time.time() - t_runs) / len(fpps)    # budget counts from the program's start
         if budget and len(fpps) >= MIN_RUNS and time.time() - T_START + per_run > budget:
             break                                    # a crowded field: report what we have
