@@ -1,0 +1,7 @@
+# PlanetFinder paper-v1 environment, recorded 2026-10-16T08:19:23+01:00
+os: Ubuntu 26.04.1 LTS, kernel 7.0.0-34-generic, x86_64
+cpu: 16 threads, AMD Ryzen 7 8845HS w/ Radeon 780M Graphics
+main env (.venv): Python 3.14.4
+vetting env (.venv-vet): Python 3.11.17
+uv: uv 0.12.24 (x86_64-unknown-linux-gnu)
+tools: GNU bash, version 5.3.9(1)-release; 3.46.1; jq-1.8.1; tmux 3.6; curl 8.18.0

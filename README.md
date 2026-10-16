@@ -948,6 +948,7 @@ behind them are in the `gaia_ruwe`, `gaia_rv_chisq_pvalue` and `gaia_c_star_sigm
 | `publish/` | Private-only: `sync_public.py` copies the allowlisted code (`allowlist.txt`) into the public PlanetFinder repo, refusing if a file names an unpublished star |
 | `docs/` | `literature_review.md` (how comparable pipelines vet, and the source of each borrowed method) and `references.bib` (citations for a write-up) |
 | `STATUS.md` | Current state: progress, candidates, VSX queue, open items. Updated after each batch review |
+| `env/` | The environments the `paper-v1` snapshot ran with: `venv-freeze.txt`, `venv-vet-freeze.txt` (exact package versions) and `system.txt` (OS, Python, tools) |
 
 Not in git (made by running the pipeline):
 

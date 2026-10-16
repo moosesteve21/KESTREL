@@ -9,7 +9,7 @@ abstract: >-
   An unattended pipeline that searches TESS light curves (SPOC, TESS-SPOC and QLP)
   for transiting planets around bright, lightly observed K and M dwarfs, with automated
   vetting: odd/even, secondary-eclipse, uniqueness and duration tests, pixel-level
-  position checks, independent-reduction checks, a physical transit fit with a
+  position checks and per-source pixel depth maps, independent-reduction checks, a physical transit fit with a
   stellar-density test, and TRICERATOPS false-positive probabilities. Candidates are
   published with their evidence at https://github.com/moosesteve21/PlanetCandidates.
 keywords:
@@ -22,3 +22,5 @@ keywords:
 license: MIT
 repository-code: "https://github.com/moosesteve21/PlanetFinder"
 type: software
+version: "paper-v1"
+date-released: "2026-10-16"
