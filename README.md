@@ -35,10 +35,11 @@ the way (eclipsing binaries, spotted stars, wrong catalogue periods) are a secon
 
 **How it's run.**
 - The sky is worked through in numbered **batches** (b001, b002, ...) of the
-  highest-scoring stars not yet searched: 300 stars for daytime runs (about 1¼ hours),
-  500 overnight.
-- **The owner starts every batch** and reviews its results before starting the next.
-  Batches are never chained or started automatically.
+  highest-scoring stars not yet searched: 300 stars for daytime runs (about 1–1¼ hours),
+  500 overnight. The whole-sky list (b001–b044, 12,823 stars) was finished on 2026-10-16.
+- **The owner starts every batch or chain of batches.** Since 2026-10-15 batches may run
+  back to back with `run_chain.sh`, which pauses for review as soon as a batch has a clean
+  signal. Nothing starts automatically.
 - **Preparing the next batch is a manual step,** never done by the pipeline. The owner
   (or the assistant, when asked) selects it with `tess_target_finder.py` and prefetches
   it, usually while the current batch is still running, so it's ready to start.
@@ -78,9 +79,12 @@ only the start. Before posting, a candidate should also have:
 
 Weaker or doubtful signals go on the **watchlist**, to be re-tested as new sectors arrive.
 
-**Roadmap.** Finish the current target list (stars with 1–6 sectors). Then refresh the
-catalogue for new sectors, and extend the search to stars with 7–10 sectors, then 11–30
-(after capping the per-sector checks), then TESS's polar continuous-viewing zones.
+**Roadmap.** The target list of stars with 1–6 sectors is finished (2026-10-16). Next: a
+frozen snapshot of the code, re-run over the whole list (`--rerun`, batches r001 onwards)
+for a methods paper, with a recovery test on the known systems the selection removed.
+Then refresh the catalogue for new sectors, and extend the search to stars with 7–10
+sectors, then 11–30 (after capping the per-sector checks), then TESS's polar
+continuous-viewing zones.
 
 **Where to look next.** `STATUS.md` (current state and results), `EXAMPLE_RUN.txt` (one
 full batch, step by step), `investigations/README.md` (every close look at a star), and
@@ -166,8 +170,9 @@ with all network access blocked: a prefetched star gave the same result as its o
 search. A manifest more than two weeks old may miss new sectors; use `--refresh`. The
 follow-up checks still need the network, but only for the few signals.
 
-**Rolling updates:** during the search, every 100 stars finished (`ROLLING_INGEST`, set
-to 0 to turn off) the results so far are loaded into the database, so a long batch can be
+**Rolling updates:** during the search, once at least 100 more stars have finished
+(`ROLLING_INGEST`, set to 0 to turn off; checked every 2 s, so a load may come at 103 or
+204) the results so far are loaded into the database, so a long batch can be
 browsed in Datasette as it runs. The run's note shows `[in progress: x/y searched]`.
 A run paused with `STOP` (or interrupted) is loaded on the way out too, marked
 `[stopped: x/y searched]`. These loads hold the search's signals, flags and plots; the catalogue, pixel, reduction,
@@ -374,7 +379,8 @@ For each star with a candidate, the script queries:
 - **ExoFOP-TESS:** TOIs and community TOIs, follow-up observations and known companions.
 - **SIMBAD:** identifier, object type and spectral type.
 - **Known variables within 3′:** VSX, Gaia DR3 eclipsing binaries and classifications,
-  and ZTF periodic variables.
+  ZTF periodic variables, and the TESS Ten Thousand Catalog of eclipsing binaries
+  (Kostov et al. 2025).
 - **TIC neighbours within 5′.**
 - **Gaia DR3 binarity measures for the target:** RUWE, a binary-orbit solution,
   radial-velocity variability, BP/RP flux excess and double-peaked images.
@@ -658,7 +664,8 @@ consistent (over a long baseline the search's period can drift by tens of minute
 .venv/bin/python fpp_check.py results/<name>/enriched.csv     # [--draws 1000000] [--runs 10]
 ```
 
-For candidates whose fit is `consistent`, `fpp_check.py` runs TRICERATOPS
+For candidates whose fit is `consistent` (or `grazing_density_uncertain`) and that the
+depth map doesn't put `off_target`, `fpp_check.py` runs TRICERATOPS
 (Giacalone et al. 2021; `vetting/fpp_triceratops.py`, in `.venv-vet`).
 
 - **Inputs:** the same normalised transits, folded and binned, with SPOC and
@@ -690,7 +697,7 @@ For candidates whose fit is `consistent`, `fpp_check.py` runs TRICERATOPS
   unresolved-companion scenarios stay open. TIC 302453503: FPP 0.04–0.06, NFPP
   ≤ 0.0003, `likely_planet`.
 
-Both steps run in `pipeline.sh` when `.venv-vet` exists. `tessdb.py` loads them into
+Both steps run in `followup.sh` (started by `pipeline.sh`) when `.venv-vet` exists. `tessdb.py` loads them into
 `transit_fits` and `fpp_checks`, and `candidates_view` shows them in its `density`
 and `fpp` columns.
 
@@ -804,6 +811,13 @@ For a quick look at one folder without the database, plain Python is enough:
 | `results/<name>/w<k>/plots/<star>/` | Per-candidate plot: periodogram, folded light curve, odd vs even transits |
 | `results/<name>/enriched.csv` | Candidates plus catalogue information and catalogue flags |
 | `results/<name>/pixel_check/` | Pixel-check tables (per sector and per candidate) and difference-image plots |
+| `results/<name>/reduction_check/` | Per-reduction depths and `reduction_summary.csv` (with `bkg_rise_ppm`) |
+| `results/<name>/vsx_shortlist.csv` | The batch's variable-star signals for the weekly VSX session |
+| `results/<name>/transit_fit/` | `transit_fit.csv` (Rp, b, a/R*, T14, density, convergence) and each fit's parameters and events |
+| `results/<name>/depth_map/` | `depth_map.csv` (one verdict per candidate) and a map per candidate |
+| `results/<name>/fpp_check/` | `fpp.csv`: TRICERATOPS FPP, NFPP, scenarios and spread over runs |
+| `results/<name>/pipeline.log` | The whole batch: search and follow-up steps, in order |
+| `results/<name>/prefetch.jsonl`, `prefetch.log` | What `prefetch.py` fetched ahead of the search, with per-star timings |
 
 ## Status and flags
 
@@ -854,7 +868,7 @@ Each detected signal gets one of three statuses:
 | `target_catalogued_variable` | A catalogued variable lies at the target's own position, with or without a period (Gaia's `SOLAR_LIKE` class is listed in `target_variable` but doesn't raise the flag) |
 | `has_toi` / `has_ctoi` | ExoFOP lists a TOI or community TOI |
 | `catalogue_check_incomplete` | A catalogue query (ExoFOP, SIMBAD, Gaia, MAST, a VizieR catalogue) still failed after 3 attempts with timeouts. The failure is never cached as "nothing found": rerun `enrich_candidates.py` and only the missing checks are fetched again. The step's log lists the stars and checks affected. Until then, a missing `has_toi` or variable match means nothing |
-| `has_spoc_tce` | SPOC's own pipeline found this period (or 2× or ½×) as a threshold-crossing event, from its data-validation reports on MAST (the widest-range and latest reports). Known to SPOC even if never promoted to a TOI (one b020 candidate was such an unpromoted TCE). Details in `spoc_tces` |
+| `has_spoc_tce` | SPOC's own pipeline found this period (or 2× or ½×) as a threshold-crossing event, from its data-validation reports on MAST (the widest-range and latest reports). Known to SPOC even if never promoted to a TOI (one b020 candidate was such an unpromoted TCE). Details in `spoc_tces`. Added 2026-10-14: batches b001–b022 were checked without it (the paper re-runs check every batch) |
 | `simbad_<type>` | SIMBAD classifies the target as something notable, such as `SB*` |
 | `gaia_ruwe_high` | RUWE above 1.4: extra wobble on the sky, often an unresolved companion |
 | `gaia_non_single_star` | Gaia fitted a binary (or companion) orbit |
@@ -922,15 +936,17 @@ behind them are in the `gaia_ruwe`, `gaia_rv_chisq_pvalue` and `gaia_c_star_sigm
 | `pixel_check.py` | Step 4: pixel-level checks |
 | `inject_recover.py` | Sensitivity test: injects synthetic transits and measures how many are recovered |
 | `reduction_check.py` | Step 5: is the dip in every independent reduction? |
-| `pipeline.sh` | Runs steps 2–5 and the database load, unattended |
+| `pipeline.sh` | Step 2 (the search) with typo guards; then hands the batch to `followup.sh` and posts "search done" |
+| `run_chain.sh` | Runs several batches' searches back to back, pausing for review when one has a clean signal |
+| `logsetup.py` | Logging for the follow-up scripts (`PLANETFINDER_LOG=debug`) |
 | `tessdb.py` | Results database: ingest runs, notes, backups, Datasette browsing |
 | `tests/` | `test_run_parallel.sh`: fast checks of the run logic with a fake search; `check_regression.py` + `regression_expect.csv`: expected outcomes for `targets/regression.txt` |
 | `investigations/` | Close looks at individual stars: scripts, plots and notes (index in its README) |
 | `targets/` | Target lists (`.txt`, read by the search) and the finder's ranked CSVs: `controls.txt` (known-planet control stars), `ffi.txt` (first field), `aries.txt`, `b001.txt`, ... |
 | `records/` | CSV copies of the tables only the database holds (notes, watchlist, batches), written by `tessdb.py backup`; commit them after each batch |
-| `server/` | Boot-time setup: the tmux sessions (claude, db, jupyter, tess) recreated by a systemd user service, and `batch_status.sh` for batches a reboot interrupted |
+| `server/` | Boot-time setup: the tmux sessions (claude, db, jupyter, tess) recreated by a systemd user service; `batch_status.sh` for batches a reboot interrupted; `notify.sh` for the optional Discord messages |
 | `publish/` | Private-only: `sync_public.py` copies the allowlisted code (`allowlist.txt`) into the public PlanetFinder repo, refusing if a file names an unpublished star |
-| `docs/` | `literature_review.md` (how comparable pipelines vet; improvements to make) and `references.bib` (citations for a write-up) |
+| `docs/` | `literature_review.md` (how comparable pipelines vet, and the source of each borrowed method) and `references.bib` (citations for a write-up) |
 | `STATUS.md` | Current state: progress, candidates, VSX queue, open items. Updated after each batch review |
 
 Not in git (made by running the pipeline):
