@@ -489,7 +489,10 @@ def make_rerun(n, name):
     except OSError:
         version = "?"
     txt_path = f"targets/{name}.txt"
-    df.to_csv(HERE / f"targets/{name}.csv", index=False)
+    # the finder's CSV column names (as make_batch writes them): tessdb.py reads ID, Tmag, Teff, ...
+    out = df.rename(columns={"tic": "ID", "tmag": "Tmag", "teff": "Teff", "gaia": "GAIA"})
+    out = out[["target"] + [c for c in out.columns if c != "target"]]
+    out.to_csv(HERE / f"targets/{name}.csv", index=False)
     batches = sorted(df["batch"].unique())
     lines = [
         f"# Re-run batch {name}: {len(df)} stars from the original batches {batches[0]}-{batches[-1]}, in their",
