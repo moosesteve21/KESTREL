@@ -23,4 +23,12 @@ license: MIT
 repository-code: "https://github.com/moosesteve21/PlanetFinder"
 type: software
 version: "paper-v1"
+doi: "10.5281/zenodo.23411916"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.23411916"
+    description: "This version (paper-v1)"
+  - type: doi
+    value: "10.5281/zenodo.23411915"
+    description: "All versions (resolves to the latest)"
 date-released: "2026-10-16"

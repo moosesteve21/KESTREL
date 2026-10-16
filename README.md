@@ -11,6 +11,9 @@ observed dwarf stars, with automatic vetting to reject false positives. It also
 flags interesting non-planets, such as eclipsing binaries and spotted stars, for
 later investigation.
 
+**Citing:** the version used for the methods paper is `paper-v1`, archived on Zenodo as
+doi:10.5281/zenodo.23411916 (all versions: doi:10.5281/zenodo.23411915). See `CITATION.cff`.
+
 ## Project overview
 
 **Who and why.** A one-person citizen-science project (Steve Price; Zooniverse:
