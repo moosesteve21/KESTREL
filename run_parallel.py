@@ -26,9 +26,10 @@ resumed by seeding the queue from its done.txt files.
 Pausing: create <out>/STOP. Workers finish their current star and exit, and the
 run stops with status 6; rerunning the command removes STOP and continues.
 
-Rolling updates: with ROLLING_INGEST=N (pipeline.sh sets 100), every N stars
-finished the results so far are loaded into tess.db (tessdb.py ingest; the run's
-note says "[in progress: x/y searched]"), so long runs can be browsed as they go;
+Rolling updates: with ROLLING_INGEST=N (pipeline.sh sets 100), once at least N more
+stars have finished (checked every POLL seconds, so a load may come at 103 or 204) the
+results so far are loaded into tess.db (tessdb.py ingest; the run's note says
+"[in progress: x/y searched]"), so long runs can be browsed as they go;
 a run stopped by STOP or a signal is loaded too ("[stopped: x/y searched]").
 The final load, after the follow-up checks, replaces them.
 
@@ -67,7 +68,7 @@ RETRY_WAIT = float(os.environ.get("RETRY_WAIT", 300))
 STAGGER = float(os.environ.get("STAGGER", 20))
 POLL = float(os.environ.get("POLL", 2))       # seconds between supervisor checks
 PREFETCH_POLL = float(os.environ.get("PREFETCH_POLL", 10))   # checks while a prefetch runs
-ROLLING_INGEST = int(os.environ.get("ROLLING_INGEST", 0))   # load into tess.db every N stars (0: off)
+ROLLING_INGEST = int(os.environ.get("ROLLING_INGEST", 0))   # load into tess.db after >= N more stars (0: off)
 RUN_NOTE = os.environ.get("RUN_NOTE", "")       # the run's database note (pipeline.sh sets both)
 
 
