@@ -4,15 +4,16 @@
 > evidence, in [PlanetCandidates](https://github.com/moosesteve21/PlanetCandidates) once
 > they have been submitted.
 
-# PlanetFinder
+# KESTREL
 
-An unattended blind transit search of TESS light curves, aimed at small, lightly
+**KESTREL** (called PlanetFinder until 2026-10-17; the repository and code keep the old name for
+now) is an unattended blind transit search of TESS light curves, aimed at small, lightly
 observed dwarf stars, with automatic vetting to reject false positives. It also
 flags interesting non-planets, such as eclipsing binaries and spotted stars, for
 later investigation.
 
 **Citing:** the version used for the methods paper is `paper-v1`, archived on Zenodo as
-doi:10.5281/zenodo.23411916 (all versions: doi:10.5281/zenodo.23411915). See `CITATION.cff`.
+doi:10.5281/zenodo.23411916 (all versions: doi:10.5281/zenodo.23411915; archived under the old name). See `CITATION.cff`.
 
 ## Project overview
 

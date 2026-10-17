@@ -1,6 +1,6 @@
 cff-version: 1.2.0
-message: "If you use PlanetFinder or its results, please cite it as below."
-title: "PlanetFinder: an independent search of TESS light curves for transiting planets around bright K and M dwarfs"
+message: "If you use KESTREL (formerly PlanetFinder) or its results, please cite it as below."
+title: "KESTREL: an independent search of TESS light curves for transiting planets around bright K and M dwarfs"
 authors:
   - family-names: Price
     given-names: Steve
