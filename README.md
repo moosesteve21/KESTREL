@@ -1,4 +1,4 @@
-> **This is the public code of PlanetFinder.** The day-to-day analyses, candidate
+> **This is the public code of KESTREL (formerly PlanetFinder).** The day-to-day analyses, candidate
 > reviews and status notes referred to below (`investigations/`, `records/`, `STATUS.md`,
 > `targets/`) live in a private working repo. Candidates are published, with their
 > evidence, in [PlanetCandidates](https://github.com/moosesteve21/PlanetCandidates) once
@@ -69,7 +69,7 @@ posting the outcome to Discord (if configured). Then the owner and assistant:
 post or form data, report) in the PlanetCandidates repo. That folder is committed as
 the last step before the owner posts or submits, so the repo records exactly what went
 out. Every public submission (Talk post, VSX report, email) links both the candidate's
-PlanetCandidates folder and the public code repo, https://github.com/moosesteve21/PlanetFinder.
+PlanetCandidates folder and the public code repo, https://github.com/moosesteve21/KESTREL.
 
 **What makes a candidate worth posting.** Surviving the automatic checks ("clean") is
 only the start. Before posting, a candidate should also have:
