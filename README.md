@@ -96,6 +96,10 @@ full batch, step by step), `investigations/README.md` (every close look at a sta
 
 ## The pipeline at a glance
 
+![One star's path through target selection, the search and catalogue enrichment](docs/figures/search_flow_diagram.svg)
+
+*One star's path from target selection to the candidate list (simplified: stars already searched are also skipped, stars without a Gaia RUWE are kept, and a search also stops if fewer than 100 points remain after masking or on an error).*
+
 1. **Choose targets:** `tess_target_finder.py` builds a whole-sky catalogue from the TESS
    Input Catalog and writes each batch: the highest-scoring unsearched stars.
    - **Prefetch:** `prefetch.py` downloads a batch's light curves ahead of its search.

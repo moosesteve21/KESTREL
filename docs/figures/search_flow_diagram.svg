@@ -1,0 +1,200 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1995" viewBox="0 0 1000 1995" font-family="Helvetica, Arial, sans-serif">
+<defs><marker id="a-main" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#4a5a70"/></marker><marker id="a-data" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2e86c1"/></marker><marker id="a-exit" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#c0392b"/></marker><marker id="a-disc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#d68910"/></marker><marker id="a-fin" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#808080"/></marker></defs>
+<rect width="1000" height="1995" fill="#ffffff"/>
+<text x="500.0" y="38" font-size="21" text-anchor="middle" font-weight="bold" fill="#1d2733" >From target selection to the candidate list</text>
+<text x="500.0" y="60" font-size="13" text-anchor="middle" font-weight="normal" fill="#5a6b80" >One star&#x27;s path through target selection, the search and catalogue enrichment</text>
+<rect x="175" y="70" width="22" height="14" rx="3" fill="#eef2f7" stroke="#4a5a70" stroke-width="1.4"/>
+<text x="203" y="81.5" font-size="11.5" text-anchor="start" font-weight="normal" fill="#333" >Step</text>
+<polygon points="254.2,70 268.2,70 272.2,77 268.2,84 254.2,84 250.2,77" fill="#fff8e6" stroke="#b58500" stroke-width="1.4"/>
+<text x="278.2" y="81.5" font-size="11.5" text-anchor="start" font-weight="normal" fill="#333" >Test</text>
+<rect x="325.4" y="70" width="22" height="14" rx="7" fill="#e6f1fb" stroke="#2e86c1" stroke-width="1.4"/>
+<text x="353.4" y="81.5" font-size="11.5" text-anchor="start" font-weight="normal" fill="#333" >External data called</text>
+<rect x="501.4" y="70" width="22" height="14" rx="3" fill="#fdecec" stroke="#c0392b" stroke-width="1.4"/>
+<text x="529.4" y="81.5" font-size="11.5" text-anchor="start" font-weight="normal" fill="#333" >Leaves: rejected</text>
+<rect x="255" y="89" width="22" height="14" rx="3" fill="#fff1dc" stroke="#d68910" stroke-width="1.4"/>
+<text x="283" y="100.5" font-size="11.5" text-anchor="start" font-weight="normal" fill="#333" >Signal discarded, search goes on</text>
+<rect x="506.6" y="89" width="22" height="14" rx="3" fill="#f0f0f0" stroke="#808080" stroke-width="1.4"/>
+<text x="534.6" y="100.5" font-size="11.5" text-anchor="start" font-weight="normal" fill="#333" >Star finished / skipped</text>
+<rect x="701.5" y="89" width="22" height="14" rx="3" fill="#e6f5ec" stroke="#1e8449" stroke-width="1.4"/>
+<text x="729.5" y="100.5" font-size="11.5" text-anchor="start" font-weight="normal" fill="#333" >Result</text>
+<rect x="15" y="110" width="970" height="370" rx="12" fill="#f7f9fb" stroke="#d5dbe3"/>
+<text x="32" y="134" font-size="12.5" text-anchor="start" font-weight="bold" fill="#5a6b80" letter-spacing="1.2">1   TARGET SELECTION</text>
+<rect x="330" y="145" width="310" height="44" rx="7" fill="#eef2f7" stroke="#4a5a70" stroke-width="1.4"/>
+<text x="485.0" y="171.55" font-size="13" text-anchor="middle" font-weight="normal" fill="#1d2733" >Query the TIC for bright, small dwarfs</text>
+<rect x="30" y="150.0" width="220" height="34" rx="17.0" fill="#e6f1fb" stroke="#2e86c1" stroke-width="1.4"/>
+<text x="140.0" y="171.2" font-size="12" text-anchor="middle" font-weight="normal" fill="#1d2733" >TESS Input Catalog</text>
+<path d="M250,167.0 L326,167.0" fill="none" stroke="#2e86c1" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#a-data)"/>
+<path d="M485.0,189 L485.0,212" fill="none" stroke="#4a5a70" stroke-width="1.5" marker-end="url(#a-main)"/>
+<polygon points="346,215 624,215 640,237.0 624,259 346,259 330,237.0" fill="#fff8e6" stroke="#b58500" stroke-width="1.6"/>
+<text x="485.0" y="241.55" font-size="13" text-anchor="middle" font-weight="normal" fill="#1d2733" >Few enough TESS sectors?</text>
+<rect x="30" y="220.0" width="220" height="34" rx="17.0" fill="#e6f1fb" stroke="#2e86c1" stroke-width="1.4"/>
+<text x="140.0" y="241.2" font-size="12" text-anchor="middle" font-weight="normal" fill="#1d2733" >tess-point (pointings)</text>
+<path d="M250,237.0 L326,237.0" fill="none" stroke="#2e86c1" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#a-data)"/>
+<rect x="730" y="215.0" width="235" height="44" rx="7" fill="#fdecec" stroke="#c0392b" stroke-width="1.4"/>
+<text x="847.5" y="241.2" font-size="12" text-anchor="middle" font-weight="normal" fill="#1d2733" >Too many sectors: dropped</text>
+<path d="M640,237.0 L726,237.0" fill="none" stroke="#c0392b" stroke-width="1.5" marker-end="url(#a-exit)"/>
+<text x="666" y="231.0" font-size="11" text-anchor="middle" font-weight="bold" fill="#c0392b" >No</text>
+<path d="M485.0,259 L485.0,282" fill="none" stroke="#4a5a70" stroke-width="1.5" marker-end="url(#a-main)"/>
+<polygon points="346,285 624,285 640,307.0 624,329 346,329 330,307.0" fill="#fff8e6" stroke="#b58500" stroke-width="1.6"/>
+<text x="485.0" y="311.55" font-size="13" text-anchor="middle" font-weight="normal" fill="#1d2733" >Not already a known system?</text>
+<rect x="30" y="290.0" width="220" height="34" rx="17.0" fill="#e6f1fb" stroke="#2e86c1" stroke-width="1.4"/>
+<text x="140.0" y="311.2" font-size="12" text-anchor="middle" font-weight="normal" fill="#1d2733" >TOI, planet &amp; EB lists</text>
+<path d="M250,307.0 L326,307.0" fill="none" stroke="#2e86c1" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#a-data)"/>
+<rect x="730" y="285.0" width="235" height="44" rx="7" fill="#fdecec" stroke="#c0392b" stroke-width="1.4"/>
+<text x="847.5" y="311.2" font-size="12" text-anchor="middle" font-weight="normal" fill="#1d2733" >Already known: dropped</text>
+<path d="M640,307.0 L726,307.0" fill="none" stroke="#c0392b" stroke-width="1.5" marker-end="url(#a-exit)"/>
+<text x="666" y="301.0" font-size="11" text-anchor="middle" font-weight="bold" fill="#c0392b" >No</text>
+<path d="M485.0,329 L485.0,352" fill="none" stroke="#4a5a70" stroke-width="1.5" marker-end="url(#a-main)"/>
+<polygon points="346,355 624,355 640,377.0 624,399 346,399 330,377.0" fill="#fff8e6" stroke="#b58500" stroke-width="1.6"/>
+<text x="485.0" y="381.55" font-size="13" text-anchor="middle" font-weight="normal" fill="#1d2733" >Gaia says single star?</text>
+<rect x="30" y="360.0" width="220" height="34" rx="17.0" fill="#e6f1fb" stroke="#2e86c1" stroke-width="1.4"/>
+<text x="140.0" y="381.2" font-size="12" text-anchor="middle" font-weight="normal" fill="#1d2733" >Gaia DR3 (RUWE)</text>
+<path d="M250,377.0 L326,377.0" fill="none" stroke="#2e86c1" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#a-data)"/>
+<rect x="730" y="355.0" width="235" height="44" rx="7" fill="#fdecec" stroke="#c0392b" stroke-width="1.4"/>
+<text x="847.5" y="381.2" font-size="12" text-anchor="middle" font-weight="normal" fill="#1d2733" >Likely binary: dropped</text>
+<path d="M640,377.0 L726,377.0" fill="none" stroke="#c0392b" stroke-width="1.5" marker-end="url(#a-exit)"/>
+<text x="666" y="371.0" font-size="11" text-anchor="middle" font-weight="bold" fill="#c0392b" >No</text>
+<path d="M485.0,399 L485.0,417" fill="none" stroke="#4a5a70" stroke-width="1.5" marker-end="url(#a-main)"/>
+<rect x="330" y="420" width="310" height="44" rx="7" fill="#eef2f7" stroke="#4a5a70" stroke-width="1.4"/>
+<text x="485.0" y="446.55" font-size="13" text-anchor="middle" font-weight="normal" fill="#1d2733" >Ranked target list → batch file</text>
+<rect x="15" y="500" width="970" height="235" rx="12" fill="#f7f9fb" stroke="#d5dbe3"/>
+<text x="32" y="524" font-size="12.5" text-anchor="start" font-weight="bold" fill="#5a6b80" letter-spacing="1.2">2   LIGHT CURVES</text>
+<path d="M485.0,464 L485.0,532" fill="none" stroke="#4a5a70" stroke-width="1.5" marker-end="url(#a-main)"/>
+<polygon points="346,535 624,535 640,557.0 624,579 346,579 330,557.0" fill="#fff8e6" stroke="#b58500" stroke-width="1.6"/>
+<text x="485.0" y="561.55" font-size="13" text-anchor="middle" font-weight="normal" fill="#1d2733" >TESS light curves available?</text>
+<rect x="30" y="540.0" width="220" height="34" rx="17.0" fill="#e6f1fb" stroke="#2e86c1" stroke-width="1.4"/>
+<text x="140.0" y="561.2" font-size="12" text-anchor="middle" font-weight="normal" fill="#1d2733" >MAST (prefetched or live)</text>
+<path d="M250,557.0 L326,557.0" fill="none" stroke="#2e86c1" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#a-data)"/>
+<rect x="730" y="535.0" width="235" height="44" rx="7" fill="#fdecec" stroke="#c0392b" stroke-width="1.4"/>
+<text x="847.5" y="561.2" font-size="12" text-anchor="middle" font-weight="normal" fill="#1d2733" >No data: rejected</text>
+<path d="M640,557.0 L726,557.0" fill="none" stroke="#c0392b" stroke-width="1.5" marker-end="url(#a-exit)"/>
+<text x="666" y="551.0" font-size="11" text-anchor="middle" font-weight="bold" fill="#c0392b" >No</text>
+<path d="M485.0,579 L485.0,602" fill="none" stroke="#4a5a70" stroke-width="1.5" marker-end="url(#a-main)"/>
+<polygon points="346,605 624,605 640,627.0 624,649 346,649 330,627.0" fill="#fff8e6" stroke="#b58500" stroke-width="1.6"/>
+<text x="485.0" y="631.55" font-size="13" text-anchor="middle" font-weight="normal" fill="#1d2733" >Usable after cleaning?</text>
+<rect x="730" y="605.0" width="235" height="44" rx="7" fill="#fdecec" stroke="#c0392b" stroke-width="1.4"/>
+<text x="847.5" y="631.2" font-size="12" text-anchor="middle" font-weight="normal" fill="#1d2733" >No usable data: rejected</text>
+<path d="M640,627.0 L726,627.0" fill="none" stroke="#c0392b" stroke-width="1.5" marker-end="url(#a-exit)"/>
+<text x="666" y="621.0" font-size="11" text-anchor="middle" font-weight="bold" fill="#c0392b" >No</text>
+<path d="M485.0,649 L485.0,672" fill="none" stroke="#4a5a70" stroke-width="1.5" marker-end="url(#a-main)"/>
+<rect x="330" y="675" width="310" height="44" rx="7" fill="#eef2f7" stroke="#4a5a70" stroke-width="1.4"/>
+<text x="485.0" y="701.55" font-size="13" text-anchor="middle" font-weight="normal" fill="#1d2733" >Star size &amp; mass; momentum dumps</text>
+<rect x="30" y="680.0" width="220" height="34" rx="17.0" fill="#e6f1fb" stroke="#2e86c1" stroke-width="1.4"/>
+<text x="140.0" y="701.2" font-size="12" text-anchor="middle" font-weight="normal" fill="#1d2733" >TIC + light-curve files</text>
+<path d="M250,697.0 L326,697.0" fill="none" stroke="#2e86c1" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#a-data)"/>
+<rect x="15" y="755" width="970" height="660" rx="12" fill="#f7f9fb" stroke="#d5dbe3"/>
+<text x="32" y="779" font-size="12.5" text-anchor="start" font-weight="bold" fill="#5a6b80" letter-spacing="1.2">3   SEARCH LOOP  (one signal per pass)</text>
+<path d="M485.0,719 L485.0,787" fill="none" stroke="#4a5a70" stroke-width="1.5" marker-end="url(#a-main)"/>
+<rect x="330" y="790" width="310" height="44" rx="7" fill="#eef2f7" stroke="#4a5a70" stroke-width="1.4"/>
+<text x="485.0" y="816.55" font-size="13" text-anchor="middle" font-weight="normal" fill="#1d2733" >Flatten &amp; tidy (found signals masked)</text>
+<path d="M485.0,834 L485.0,857" fill="none" stroke="#4a5a70" stroke-width="1.5" marker-end="url(#a-main)"/>
+<rect x="330" y="860" width="310" height="44" rx="7" fill="#eef2f7" stroke="#4a5a70" stroke-width="1.4"/>
+<text x="485.0" y="886.55" font-size="13" text-anchor="middle" font-weight="normal" fill="#1d2733" >BLS period search</text>
+<path d="M485.0,904 L485.0,927" fill="none" stroke="#4a5a70" stroke-width="1.5" marker-end="url(#a-main)"/>
+<polygon points="346,930 624,930 640,952.0 624,974 346,974 330,952.0" fill="#fff8e6" stroke="#b58500" stroke-width="1.6"/>
+<text x="485.0" y="956.55" font-size="13" text-anchor="middle" font-weight="normal" fill="#1d2733" >Strong enough signal?</text>
+<rect x="730" y="930.0" width="235" height="44" rx="7" fill="#f0f0f0" stroke="#808080" stroke-width="1.4"/>
+<text x="847.5" y="948.7" font-size="12" text-anchor="middle" font-weight="normal" fill="#1d2733" >No more signals:</text>
+<text x="847.5" y="963.7" font-size="12" text-anchor="middle" font-weight="normal" fill="#1d2733" >star finished</text>
+<path d="M640,952.0 L726,952.0" fill="none" stroke="#808080" stroke-width="1.5" marker-end="url(#a-fin)"/>
+<text x="666" y="946.0" font-size="11" text-anchor="middle" font-weight="bold" fill="#808080" >No</text>
+<circle cx="947" cy="952" r="11" fill="#fff" stroke="#808080" stroke-width="1.5"/>
+<text x="947" y="956.5" font-size="12" text-anchor="middle" font-weight="bold" fill="#808080" >A</text>
+<path d="M485.0,974 L485.0,997" fill="none" stroke="#4a5a70" stroke-width="1.5" marker-end="url(#a-main)"/>
+<polygon points="346,1000 624,1000 640,1022.0 624,1044 346,1044 330,1022.0" fill="#fff8e6" stroke="#b58500" stroke-width="1.6"/>
+<text x="485.0" y="1026.55" font-size="13" text-anchor="middle" font-weight="normal" fill="#1d2733" >Survives losing its strongest events?</text>
+<rect x="730" y="1000.0" width="235" height="44" rx="7" fill="#fff1dc" stroke="#d68910" stroke-width="1.4"/>
+<text x="847.5" y="1026.2" font-size="12" text-anchor="middle" font-weight="normal" fill="#1d2733" >Glitch: masked, search again</text>
+<path d="M640,1022.0 L726,1022.0" fill="none" stroke="#d68910" stroke-width="1.5" marker-end="url(#a-disc)"/>
+<text x="666" y="1016.0" font-size="11" text-anchor="middle" font-weight="bold" fill="#d68910" >No</text>
+<path d="M485.0,1044 L485.0,1067" fill="none" stroke="#4a5a70" stroke-width="1.5" marker-end="url(#a-main)"/>
+<polygon points="346,1070 624,1070 640,1092.0 624,1114 346,1114 330,1092.0" fill="#fff8e6" stroke="#b58500" stroke-width="1.6"/>
+<text x="485.0" y="1096.55" font-size="13" text-anchor="middle" font-weight="normal" fill="#1d2733" >Dip seen in most single transits?</text>
+<rect x="730" y="1070.0" width="235" height="44" rx="7" fill="#fff1dc" stroke="#d68910" stroke-width="1.4"/>
+<text x="847.5" y="1096.2" font-size="12" text-anchor="middle" font-weight="normal" fill="#1d2733" >Noise: masked, search again</text>
+<path d="M640,1092.0 L726,1092.0" fill="none" stroke="#d68910" stroke-width="1.5" marker-end="url(#a-disc)"/>
+<text x="666" y="1086.0" font-size="11" text-anchor="middle" font-weight="bold" fill="#d68910" >No</text>
+<path d="M485.0,1114 L485.0,1137" fill="none" stroke="#4a5a70" stroke-width="1.5" marker-end="url(#a-main)"/>
+<polygon points="346,1140 624,1140 640,1162.0 624,1184 346,1184 330,1162.0" fill="#fff8e6" stroke="#b58500" stroke-width="1.6"/>
+<text x="485.0" y="1166.55" font-size="13" text-anchor="middle" font-weight="normal" fill="#1d2733" >A new period?</text>
+<rect x="730" y="1140.0" width="235" height="44" rx="7" fill="#fff1dc" stroke="#d68910" stroke-width="1.4"/>
+<text x="847.5" y="1158.7" font-size="12" text-anchor="middle" font-weight="normal" fill="#1d2733" >Repeat: logged as same_period,</text>
+<text x="847.5" y="1173.7" font-size="12" text-anchor="middle" font-weight="normal" fill="#1d2733" >masked, search again</text>
+<path d="M640,1162.0 L726,1162.0" fill="none" stroke="#d68910" stroke-width="1.5" marker-end="url(#a-disc)"/>
+<text x="666" y="1156.0" font-size="11" text-anchor="middle" font-weight="bold" fill="#d68910" >No</text>
+<path d="M485.0,1184 L485.0,1207" fill="none" stroke="#4a5a70" stroke-width="1.5" marker-end="url(#a-main)"/>
+<rect x="330" y="1210" width="310" height="44" rx="7" fill="#eef2f7" stroke="#4a5a70" stroke-width="1.4"/>
+<text x="485.0" y="1236.55" font-size="13" text-anchor="middle" font-weight="normal" fill="#1d2733" >Vetting checks (add flags only)</text>
+<path d="M485.0,1254 L485.0,1277" fill="none" stroke="#4a5a70" stroke-width="1.5" marker-end="url(#a-main)"/>
+<rect x="330" y="1280" width="310" height="44" rx="7" fill="#eef2f7" stroke="#4a5a70" stroke-width="1.4"/>
+<text x="485.0" y="1306.55" font-size="13" text-anchor="middle" font-weight="normal" fill="#1d2733" >Log signal (clean or flagged); mask it</text>
+<path d="M485.0,1324 L485.0,1347" fill="none" stroke="#4a5a70" stroke-width="1.5" marker-end="url(#a-main)"/>
+<polygon points="346,1350 624,1350 640,1372.0 624,1394 346,1394 330,1372.0" fill="#fff8e6" stroke="#b58500" stroke-width="1.6"/>
+<text x="485.0" y="1376.55" font-size="13" text-anchor="middle" font-weight="normal" fill="#1d2733" >Search limits reached?</text>
+<path d="M330,1372 L300,1372 L300,812 L326,812" fill="none" stroke="#4a5a70" stroke-width="1.6" marker-end="url(#a-main)"/>
+<text x="292" y="1080" font-size="11.5" text-anchor="middle" font-weight="bold" fill="#4a5a70" transform="rotate(-90 292 1080)">No: search again</text>
+<text x="736" y="1290" font-size="11" text-anchor="start" font-weight="normal" fill="#5a6b80" >Each pass looks for the next-strongest</text>
+<text x="736" y="1305" font-size="11" text-anchor="start" font-weight="normal" fill="#5a6b80" >signal, with earlier ones masked out.</text>
+<rect x="15" y="1435" width="970" height="165" rx="12" fill="#f7f9fb" stroke="#d5dbe3"/>
+<text x="32" y="1459" font-size="12.5" text-anchor="start" font-weight="bold" fill="#5a6b80" letter-spacing="1.2">4   STAR FINISHED</text>
+<path d="M485.0,1394 L485.0,1467" fill="none" stroke="#4a5a70" stroke-width="1.5" marker-end="url(#a-main)"/>
+<text x="495.0" y="1436.0" font-size="11" text-anchor="start" font-weight="bold" fill="#4a5a70" >Yes</text>
+<circle cx="290" cy="1492" r="11" fill="#fff" stroke="#808080" stroke-width="1.5"/>
+<text x="290" y="1496.5" font-size="12" text-anchor="middle" font-weight="bold" fill="#808080" >A</text>
+<path d="M301,1492 L326,1492" fill="none" stroke="#808080" stroke-width="1.5" marker-end="url(#a-fin)"/>
+<polygon points="346,1470 624,1470 640,1492.0 624,1514 346,1514 330,1492.0" fill="#fff8e6" stroke="#b58500" stroke-width="1.6"/>
+<text x="485.0" y="1496.55" font-size="13" text-anchor="middle" font-weight="normal" fill="#1d2733" >Any signals logged?</text>
+<rect x="730" y="1470.0" width="235" height="44" rx="7" fill="#fdecec" stroke="#c0392b" stroke-width="1.4"/>
+<text x="847.5" y="1488.7" font-size="12" text-anchor="middle" font-weight="normal" fill="#1d2733" >No signals: rejected</text>
+<text x="847.5" y="1503.7" font-size="12" text-anchor="middle" font-weight="normal" fill="#1d2733" >(light curves deleted)</text>
+<path d="M640,1492.0 L726,1492.0" fill="none" stroke="#c0392b" stroke-width="1.5" marker-end="url(#a-exit)"/>
+<text x="666" y="1486.0" font-size="11" text-anchor="middle" font-weight="bold" fill="#c0392b" >No</text>
+<path d="M485.0,1514 L485.0,1537" fill="none" stroke="#4a5a70" stroke-width="1.5" marker-end="url(#a-main)"/>
+<rect x="330" y="1540" width="310" height="44" rx="7" fill="#eef2f7" stroke="#4a5a70" stroke-width="1.4"/>
+<text x="485.0" y="1566.55" font-size="13" text-anchor="middle" font-weight="normal" fill="#1d2733" >Batch merged: candidates_all.csv</text>
+<rect x="15" y="1620" width="970" height="340" rx="12" fill="#f7f9fb" stroke="#d5dbe3"/>
+<text x="32" y="1644" font-size="12.5" text-anchor="start" font-weight="bold" fill="#5a6b80" letter-spacing="1.2">5   CATALOGUE ENRICHMENT</text>
+<text x="968" y="1644" font-size="11.5" text-anchor="end" font-weight="normal" fill="#5a6b80" font-style="italic">adds information, rejects nothing</text>
+<path d="M485.0,1584 L485.0,1652" fill="none" stroke="#4a5a70" stroke-width="1.5" marker-end="url(#a-main)"/>
+<polygon points="346,1655 624,1655 640,1677.0 624,1699 346,1699 330,1677.0" fill="#fff8e6" stroke="#b58500" stroke-width="1.6"/>
+<text x="485.0" y="1681.55" font-size="13" text-anchor="middle" font-weight="normal" fill="#1d2733" >A new signal (not same_period)?</text>
+<rect x="730" y="1655.0" width="235" height="44" rx="7" fill="#f0f0f0" stroke="#808080" stroke-width="1.4"/>
+<text x="847.5" y="1681.2" font-size="12" text-anchor="middle" font-weight="normal" fill="#1d2733" >Repeat row: skipped</text>
+<path d="M640,1677.0 L726,1677.0" fill="none" stroke="#808080" stroke-width="1.5" marker-end="url(#a-fin)"/>
+<text x="666" y="1671.0" font-size="11" text-anchor="middle" font-weight="bold" fill="#808080" >No</text>
+<path d="M485.0,1699 L485.0,1722" fill="none" stroke="#4a5a70" stroke-width="1.5" marker-end="url(#a-main)"/>
+<rect x="330" y="1725" width="310" height="44" rx="7" fill="#eef2f7" stroke="#4a5a70" stroke-width="1.4"/>
+<text x="485.0" y="1751.55" font-size="13" text-anchor="middle" font-weight="normal" fill="#1d2733" >Per-star catalogue look-ups (cached)</text>
+<rect x="730" y="1725" width="235" height="44" rx="7" fill="#fff1dc" stroke="#d68910" stroke-width="1.4"/>
+<text x="847.5" y="1743.7" font-size="12" text-anchor="middle" font-weight="normal" fill="#1d2733" >Look-up failed: flagged,</text>
+<text x="847.5" y="1758.7" font-size="12" text-anchor="middle" font-weight="normal" fill="#1d2733" >rerun later to complete</text>
+<path d="M640,1747 L726,1747" fill="none" stroke="#d68910" stroke-width="1.5" marker-end="url(#a-disc)"/>
+<rect x="30" y="1668" width="220" height="32" rx="16.0" fill="#e6f1fb" stroke="#2e86c1" stroke-width="1.4"/>
+<text x="140.0" y="1688.025" font-size="11.5" text-anchor="middle" font-weight="normal" fill="#1d2733" >ExoFOP: TOIs, CTOIs, follow-up</text>
+<path d="M250,1684 L272,1684" stroke="#2e86c1" stroke-width="1.3" stroke-dasharray="5,4"/>
+<rect x="30" y="1708" width="220" height="32" rx="16.0" fill="#e6f1fb" stroke="#2e86c1" stroke-width="1.4"/>
+<text x="140.0" y="1728.025" font-size="11.5" text-anchor="middle" font-weight="normal" fill="#1d2733" >SPOC TCEs</text>
+<path d="M250,1724 L272,1724" stroke="#2e86c1" stroke-width="1.3" stroke-dasharray="5,4"/>
+<rect x="30" y="1748" width="220" height="32" rx="16.0" fill="#e6f1fb" stroke="#2e86c1" stroke-width="1.4"/>
+<text x="140.0" y="1768.025" font-size="11.5" text-anchor="middle" font-weight="normal" fill="#1d2733" >SIMBAD</text>
+<path d="M250,1764 L272,1764" stroke="#2e86c1" stroke-width="1.3" stroke-dasharray="5,4"/>
+<rect x="30" y="1788" width="220" height="32" rx="16.0" fill="#e6f1fb" stroke="#2e86c1" stroke-width="1.4"/>
+<text x="140.0" y="1808.025" font-size="11.5" text-anchor="middle" font-weight="normal" fill="#1d2733" >VSX · Gaia EBs · ZTF · TESS 10k EBs</text>
+<path d="M250,1804 L272,1804" stroke="#2e86c1" stroke-width="1.3" stroke-dasharray="5,4"/>
+<rect x="30" y="1828" width="220" height="32" rx="16.0" fill="#e6f1fb" stroke="#2e86c1" stroke-width="1.4"/>
+<text x="140.0" y="1848.025" font-size="11.5" text-anchor="middle" font-weight="normal" fill="#1d2733" >TIC neighbours</text>
+<path d="M250,1844 L272,1844" stroke="#2e86c1" stroke-width="1.3" stroke-dasharray="5,4"/>
+<rect x="30" y="1868" width="220" height="32" rx="16.0" fill="#e6f1fb" stroke="#2e86c1" stroke-width="1.4"/>
+<text x="140.0" y="1888.025" font-size="11.5" text-anchor="middle" font-weight="normal" fill="#1d2733" >Gaia DR3 binarity</text>
+<path d="M250,1884 L272,1884" stroke="#2e86c1" stroke-width="1.3" stroke-dasharray="5,4"/>
+<path d="M272,1684 L272,1884" stroke="#2e86c1" stroke-width="1.3"/>
+<path d="M272,1747 L326,1747" fill="none" stroke="#2e86c1" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#a-data)"/>
+<path d="M485.0,1769 L485.0,1792" fill="none" stroke="#4a5a70" stroke-width="1.5" marker-end="url(#a-main)"/>
+<rect x="330" y="1795" width="310" height="52" rx="7" fill="#eef2f7" stroke="#4a5a70" stroke-width="1.4"/>
+<text x="485.0" y="1817.55" font-size="13" text-anchor="middle" font-weight="normal" fill="#1d2733" >Match each signal to the catalogues:</text>
+<text x="485.0" y="1833.55" font-size="13" text-anchor="middle" font-weight="normal" fill="#1d2733" >period matches · blend suspects · flags</text>
+<path d="M485.0,1847 L485.0,1872" fill="none" stroke="#4a5a70" stroke-width="1.5" marker-end="url(#a-main)"/>
+<rect x="330" y="1875" width="310" height="46" rx="7" fill="#e6f5ec" stroke="#1e8449" stroke-width="2"/>
+<text x="485.0" y="1902.9" font-size="14" text-anchor="middle" font-weight="normal" fill="#1d2733" >enriched.csv: the candidate list</text>
+<text x="485.0" y="1940" font-size="11.5" text-anchor="middle" font-weight="normal" fill="#5a6b80" >Next stage: pixel, reduction, transit-fit and FPP checks</text>
+</svg>
